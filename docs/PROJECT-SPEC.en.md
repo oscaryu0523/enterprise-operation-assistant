@@ -1,7 +1,7 @@
 # Enterprise Operation Assistant
 ## Product & Technical Specification
 
-> Version: 1.0  
+> Version: 1.1  
 > Status: Initial baseline  
 > Primary language: English  
 > Last updated: 2026-11-21
@@ -38,11 +38,13 @@ Provide a unified, permission-aware assistant through which employees can ask qu
 5. Record conversations, tool invocations, errors, and security-relevant events.
 6. Run locally with free or mock model options for development and demonstration.
 7. Provide automated tests and reproducible container-based setup.
+8. Establish a secure architecture that can later connect each employee's approved local workspace through an optional Local Agent.
 
 ### 2.2 Non-Goals for the Initial MVP
 
 - Replacing enterprise identity providers or source-of-truth systems.
 - Unrestricted access to employee computers, files, or corporate networks.
+- A Local Agent or full desktop-control capability in the initial MVP.
 - Autonomous execution of destructive production operations.
 - Training or fine-tuning foundation models.
 - Prematurely splitting every module into a microservice.
@@ -61,7 +63,9 @@ Provide a unified, permission-aware assistant through which employees can ask qu
 | P1 | MCP Integration | Evaluate and integrate Model Context Protocol servers |
 | P1 | Log / Incident Analysis | Summarize logs and correlate supplied operational context |
 | P1 | Audit & Monitoring | Tool audit trail, metrics, structured logs |
-| P2 | Administration Console | Manage providers, tools, knowledge sources, and policies |
+| P1 | Local Agent Foundation | Device registration, secure pairing, heartbeat, and revocation design |
+| P2 | Local File Operations | User-approved folder access and allowlisted file tools through Local Agent |
+| P2 | Administration Console | Manage providers, tools, knowledge sources, devices, and policies |
 
 P0 defines the first demonstrable MVP. P1 and P2 follow only after P0 acceptance criteria are met.
 
@@ -101,7 +105,7 @@ The model may propose an action, but the backend is responsible for authorizatio
 - Support re-indexing and deletion of source documents.
 - Track ingestion status and failures.
 
-The MVP uses a small, controlled set of sample documents; format coverage can expand later.
+The MVP uses a small, controlled set of sample documents; format coverage can expand later. In future Local Agent workflows, local files must be permission-checked on the device, and only the minimum necessary authorized content or retrieval snippets may be sent to the central platform.
 
 ### 4.4 Tool Integration
 
@@ -112,7 +116,23 @@ The MVP uses a small, controlled set of sample documents; format coverage can ex
 - Require explicit human approval for future high-impact write operations.
 - Never expose arbitrary shell execution or unrestricted filesystem access in the MVP.
 
-### 4.5 Identity and Authorization
+### 4.5 Local Agent and Employee Device Access
+
+The product's long-term architecture supports an optional Local Agent installed on an employee's computer. The Local Agent performs approved local operations on that device; the central platform does not directly browse or mount employee file systems.
+
+- Register each installation as a device associated with an authenticated user and organization.
+- Pair devices through an explicit user-approved flow; support device revocation and credential rotation.
+- Require the user to explicitly select and authorize specific local folders. Access is limited to those folder scopes and can be revoked at any time.
+- Communicate outbound to the central platform over TLS using short-lived access tokens and/or device credentials. Define heartbeat, reconnect, expiry, and offline behavior.
+- Expose only explicitly registered Local Tools, initially limited to operations such as list, read, and search. Add create, update, and move only with narrowly scoped permissions and confirmation where appropriate.
+- Treat delete, overwrite, bulk changes, and other high-impact actions as high risk; require a clear preview and explicit human confirmation. Do not provide arbitrary shell execution or unrestricted desktop control.
+- Enforce user, organization, and device isolation. Audit the actor, device, folder scope, requested operation, decision, and outcome.
+- Minimize data transfer. Local file contents are not uploaded wholesale by default; transmit only the authorized content needed for the requested task. Apply the same RAG authorization filtering before content reaches a model.
+- Enterprise administrators may disable Local Agent, restrict permitted tools, or define allowed folder policies.
+
+Local Agent is a post-MVP capability. The first MVP supports browser-based document upload and does not require installing software on employee devices.
+
+### 4.6 Identity and Authorization
 
 - Authenticate users through Spring Security.
 - Use role-based access control (RBAC) for baseline permissions.
@@ -122,14 +142,14 @@ The MVP uses a small, controlled set of sample documents; format coverage can ex
 
 Suggested initial roles: **USER**, **OPERATOR**, **ADMIN**.
 
-### 4.6 Conversation Management
+### 4.7 Conversation Management
 
 - Create, list, retrieve, and archive conversations.
 - Persist user and assistant messages with timestamps.
 - Associate each conversation with its owner and access policy.
 - Prevent users from reading other users' conversations unless explicitly authorized.
 
-### 4.7 Audit and Observability
+### 4.8 Audit and Observability
 
 - Record user identity, request correlation ID, selected provider/model, tool name, execution outcome, duration, and relevant policy decisions.
 - Do not log raw credentials or unnecessarily sensitive document contents.
@@ -154,6 +174,10 @@ flowchart TD
     RAG --> PG[(PostgreSQL + pgvector)]
     AGENT --> TOOLS[Tool Registry & Policy]
     TOOLS --> SYS[Approved Tools / MCP Servers]
+    UI -. future device pairing .-> LA[Employee Local Agent]
+    LA -->|TLS / scoped device identity| LTOOLS[Local Tool Registry]
+    LTOOLS --> FS[User-approved folders]
+    LA -. minimal authorized results .-> API
     API --> AUDIT[Audit & Observability]
     CHAT --> PG
     AUDIT --> OBS[Logs & Metrics]
@@ -184,6 +208,7 @@ flowchart TD
 | CI | GitHub Actions | Build, test, and quality checks |
 | Observability | Micrometer, structured logging | Metrics and diagnostics |
 | Optional AI service | Python + FastAPI | Only for capabilities unsuitable for the Java service |
+| Future Local Agent | Java (initial preference) | Lightweight per-device process; separate deliverable after MVP |
 
 Use a modular monolith for the MVP. Python is optional, not a mandatory second backend.
 
@@ -201,6 +226,10 @@ Use a modular monolith for the MVP. Python is optional, not a mandatory second b
 10. Record security-relevant events and tool executions for audit.
 11. Require human confirmation before future high-impact or irreversible actions.
 12. Do not rely on the LLM as the security boundary or source of authorization truth.
+13. A Local Agent must operate only within user-approved folder scopes and registered tools; it must not run with administrator privileges by default.
+14. Authenticate and authorize every device connection; support device revocation, short-lived credentials, TLS, and audit logging.
+15. Enforce tenant, user, and device isolation. Minimize local data transfer and never upload entire local folders by default.
+16. Require explicit confirmation for destructive or high-impact local operations. Enterprise policy must be able to disable Local Agent or restrict its tools and folder scopes.
 
 ## 8. Initial API Design
 
@@ -216,6 +245,10 @@ The API is illustrative and may be refined during implementation.
 | GET | /api/v1/knowledge/sources | List accessible knowledge sources |
 | POST | /api/v1/knowledge/sources | Register or ingest a knowledge source |
 | GET | /api/v1/tools | List tools available to the current user |
+| POST | /api/v1/devices/pairing | Begin an authenticated Local Agent pairing flow (future) |
+| POST | /api/v1/devices/{id}/heartbeat | Receive device heartbeat (future) |
+| GET | /api/v1/devices | List the current user's registered devices (future) |
+| DELETE | /api/v1/devices/{id} | Revoke a registered device (future) |
 | GET | /actuator/health | Health check |
 
 All endpoints must validate ownership and permissions. Authentication details depend on the chosen local identity implementation.
@@ -233,6 +266,9 @@ Core entities:
 - **ToolDefinition:** tool schema, risk level, required permission, enabled status.
 - **ToolExecution:** caller, tool, arguments summary, outcome, duration, correlation ID.
 - **AuditEvent:** actor, action, target, timestamp, and outcome.
+- **Device:** user / organization association, device identity, status, last heartbeat, and credential metadata.
+- **DeviceFolderGrant:** device, approved folder scope, permission level, and revocation state.
+- **LocalToolDefinition:** allowlisted local operation, input schema, risk level, and required permission.
 
 The schema evolves through versioned database migrations.
 
@@ -248,6 +284,8 @@ The schema evolves through versioned database migrations.
 | Portability | Local startup through documented Docker Compose configuration |
 | Observability | Correlation IDs, structured logs, health checks, key metrics |
 | Cost control | Configurable model selection, token limits, mock/local options |
+| Device security | Isolated device identities, scoped folder grants, revocation, and auditable local operations |
+| Data minimization | Local content is transferred only when required and authorized |
 
 Numerical performance targets will be set after a baseline is measured on the development environment.
 
@@ -259,6 +297,7 @@ Numerical performance targets will be set after a baseline is measured on the de
 - **Failure tests:** provider timeout, invalid model output, tool failure, database unavailability.
 - **End-to-end tests:** a user asks a question, retrieves authorized knowledge, receives cited output, and invokes an allowed read-only tool.
 - **Deterministic tests:** use mock model/provider responses so CI does not require paid API access.
+- **Future Local Agent tests:** verify device pairing/revocation, folder-scope enforcement, cross-user/device isolation, offline behavior, confirmation of high-risk actions, and audit events.
 
 ## 12. MVP Acceptance Criteria
 
@@ -276,6 +315,8 @@ The MVP is complete when:
 10. Tool executions and key failures are auditable.
 11. Automated tests pass in CI without a paid LLM subscription.
 
+Local Agent installation, device pairing, and direct local-file operations are explicitly outside MVP acceptance criteria.
+
 ## 13. Development Roadmap
 
 | Phase | Deliverable |
@@ -290,6 +331,8 @@ The MVP is complete when:
 | 7. Observability | Audit events, metrics, structured logs, health checks |
 | 8. Frontend | Chat interface and essential administration views |
 | 9. Hardening | Security, integration, failure, and end-to-end tests; documentation |
+| 10. Local Agent Foundation (post-MVP) | Device identity, pairing, secure outbound connection, heartbeat, and revocation |
+| 11. Local File Tools (post-MVP) | User-approved folder scopes, read/search tools, then carefully gated write operations |
 
 Each phase must have a reviewable deliverable and passing tests before the next phase expands scope.
 
@@ -301,6 +344,8 @@ enterprise-operation-assistant/
 │   └── (Spring Boot application)
 ├── frontend/
 │   └── (React + TypeScript application)
+├── local-agent/                  # Post-MVP; per-device local process
+│   └── (Java application)
 ├── docs/
 │   ├── PROJECT-SPEC.en.md
 │   └── PROJECT-SPEC.zh-TW.md
@@ -343,7 +388,11 @@ Confirm these during implementation rather than guessing:
 - Frontend authentication/session strategy.
 - Whether MCP belongs in the first MVP or as a P1 extension.
 - Initial performance and concurrency targets.
+- Local Agent packaging and supported operating systems.
+- Device identity mechanism, pairing UX, credential rotation, and offline behavior.
+- Exact local file operations and confirmation policy for write/delete operations.
+- Enterprise policy model for disabling Local Agent and restricting folder scopes.
 
 ## 17. Project Success Criteria
 
-The project succeeds as a portfolio demonstration when it proves the ability to design and implement a secure, observable, model-agnostic enterprise AI application—not merely a chatbot wrapper. Evidence should include working code, meaningful tests, clear architecture, permission-aware RAG, governed tool execution, and reproducible local deployment.
+The project succeeds as a portfolio demonstration when it proves the ability to design and implement a secure, observable, model-agnostic enterprise AI application—not merely a chatbot wrapper. Evidence should include working code, meaningful tests, clear architecture, permission-aware RAG, governed tool execution, and reproducible local deployment. The longer-term product direction also includes a secure, optional Local Agent for user-approved local file workflows.
