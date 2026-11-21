@@ -1,7 +1,7 @@
 # 企業智慧維運 AI Agent
 ## 產品與技術規格書
 
-> 版本：1.0  
+> 版本：1.1  
 > 狀態：初版基準規格  
 > 主要語言：繁體中文  
 > 最後更新：2026-11-21
@@ -38,11 +38,13 @@
 5. 記錄對話、工具呼叫、錯誤及安全相關事件。
 6. 可使用免費或 Mock 模型方案在本機開發與展示。
 7. 提供自動化測試及可重現的容器化啟動方式。
+8. 建立安全的長期架構，未來可透過選配 Local Agent 連接每位員工經授權的本機工作區。
 
 ### 2.2 初期 MVP 不包含
 
 - 取代企業既有身分系統或資料來源系統。
 - 不受限制地存取員工電腦、檔案或企業內網。
+- 在初期 MVP 導入 Local Agent 或完整桌面控制能力。
 - 自動執行具破壞性的正式環境操作。
 - 訓練或微調基礎模型。
 - 在沒有實際需求前，將每個模組都拆成微服務。
@@ -61,7 +63,9 @@
 | P1 | MCP 整合 | 評估並整合 Model Context Protocol Server |
 | P1 | Log／事件分析 | 摘要日誌並關聯提供的維運上下文 |
 | P1 | 稽核與監控 | 工具稽核紀錄、Metrics、結構化日誌 |
-| P2 | 管理後台 | 管理 Provider、工具、知識來源與政策 |
+| P1 | Local Agent 基礎能力 | 裝置註冊、安全配對、Heartbeat 與撤銷機制設計 |
+| P2 | 本機檔案操作 | 透過 Local Agent 存取使用者授權資料夾及 Allowlist 工具 |
+| P2 | 管理後台 | 管理 Provider、工具、知識來源、裝置與政策 |
 
 P0 是第一個可展示 MVP 的必要範圍。P1、P2 必須在 P0 驗收標準達成後再逐步實作。
 
@@ -101,7 +105,7 @@ P0 是第一個可展示 MVP 的必要範圍。P1、P2 必須在 P0 驗收標準
 - 支援來源文件重新索引及刪除。
 - 追蹤匯入狀態與失敗原因。
 
-MVP 先使用少量且可控的範例文件，後續再擴充檔案格式。
+MVP 先使用少量且可控的範例文件，後續再擴充檔案格式。未來若透過 Local Agent 處理本機文件，必須先在裝置端檢查授權範圍，且僅將任務所需、已獲授權的內容或檢索片段傳至中央平台。
 
 ### 4.4 工具整合
 
@@ -112,7 +116,23 @@ MVP 先使用少量且可控的範例文件，後續再擴充檔案格式。
 - 未來若加入高影響的寫入操作，必須要求人工明確核准。
 - MVP 不開放任意 Shell 執行或不受限制的檔案系統存取。
 
-### 4.5 身分與授權
+### 4.5 Local Agent 與員工裝置存取
+
+產品長期架構支援在員工電腦安裝選配的 Local Agent。Local Agent 負責在該裝置上執行經核准的本機操作；中央平台不會直接瀏覽或掛載員工的檔案系統。
+
+- 每個安裝實例都必須註冊為裝置，並關聯已認證的使用者與企業組織。
+- 裝置配對必須經使用者明確同意，並支援裝置撤銷及憑證輪替。
+- 使用者必須明確選擇並授權特定本機資料夾；存取範圍不得超出授權資料夾，且使用者可隨時撤銷。
+- Local Agent 透過 TLS 主動連線中央平台，使用短效 Access Token 及／或裝置憑證。需定義 Heartbeat、重新連線、憑證過期及離線行為。
+- 僅開放明確註冊的 Local Tool，初期以 list、read、search 為主。create、update、move 僅能在細緻權限控管下加入，必要時要求確認。
+- delete、覆寫、大量異動及其他高風險操作必須視為高風險行為，先提供操作預覽並要求人工明確確認。不得提供任意 Shell 執行或不受限制的桌面控制。
+- 落實使用者、企業組織及裝置隔離。稽核操作者、裝置、資料夾範圍、請求操作、政策判斷及執行結果。
+- 遵守資料最小化原則。本機檔案預設不會整批上傳；僅傳輸完成任務所需且已授權的內容。資料進入模型前仍須執行 RAG 權限過濾。
+- 企業管理者可停用 Local Agent、限制允許使用的工具，或設定允許的資料夾政策。
+
+Local Agent 屬於 MVP 之後的能力。第一階段 MVP 以瀏覽器文件上傳為主，不要求員工安裝任何本機程式。
+
+### 4.6 身分與授權
 
 - 使用 Spring Security 處理使用者認證。
 - 初期以 RBAC（角色型存取控制）管理基本權限。
@@ -122,14 +142,14 @@ MVP 先使用少量且可控的範例文件，後續再擴充檔案格式。
 
 初期角色建議：**USER**、**OPERATOR**、**ADMIN**。
 
-### 4.6 對話管理
+### 4.7 對話管理
 
 - 支援建立、列出、查詢及封存對話。
 - 保存使用者與助理訊息、時間及相關中繼資料。
 - 每個對話都必須關聯擁有者與存取政策。
 - 除非明確授權，使用者不得讀取其他使用者的對話。
 
-### 4.7 稽核與可觀測性
+### 4.8 稽核與可觀測性
 
 - 記錄使用者身分、Request Correlation ID、選用的 Provider／Model、工具名稱、執行結果、耗時及相關政策判斷。
 - 不記錄原始憑證，也避免在日誌中保存不必要的敏感文件內容。
@@ -154,6 +174,10 @@ flowchart TD
     RAG --> PG[(PostgreSQL + pgvector)]
     AGENT --> TOOLS[Tool Registry & Policy]
     TOOLS --> SYS[Approved Tools / MCP Servers]
+    UI -. 未來裝置配對 .-> LA[員工 Local Agent]
+    LA -->|TLS／裝置身分與授權範圍| LTOOLS[Local Tool Registry]
+    LTOOLS --> FS[使用者授權資料夾]
+    LA -. 最小必要授權資料 .-> API
     API --> AUDIT[Audit & Observability]
     CHAT --> PG
     AUDIT --> OBS[Logs & Metrics]
@@ -184,6 +208,7 @@ flowchart TD
 | CI | GitHub Actions | 建置、測試與品質檢查 |
 | Observability | Micrometer、Structured Logging | Metrics 與診斷 |
 | Optional AI Service | Python + FastAPI | 僅在 Java 服務不適合實作特定能力時加入 |
+| Future Local Agent | Java（初期優先） | 每台裝置安裝的輕量程式，MVP 後獨立交付 |
 
 MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須額外維護的第二套 Backend。
 
@@ -201,6 +226,10 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 10. 保留安全相關事件與工具執行的稽核紀錄。
 11. 未來高影響或不可逆操作必須經人工確認。
 12. 不得將 LLM 當成資安邊界或授權判斷的唯一依據。
+13. Local Agent 僅能在使用者授權的資料夾範圍及已註冊工具內執行，預設不得使用系統管理員權限。
+14. 每個裝置連線都必須認證與授權，並支援裝置撤銷、短效憑證、TLS 及稽核紀錄。
+15. 落實企業、使用者及裝置隔離；本機資料傳輸遵守最小化原則，預設不得整批上傳本機資料夾。
+16. 刪除或高影響本機操作必須取得人工明確確認。企業政策必須能停用 Local Agent，或限制可用工具及資料夾範圍。
 
 ## 8. 初版 API 設計
 
@@ -216,6 +245,10 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 | GET | /api/v1/knowledge/sources | 列出可存取的知識來源 |
 | POST | /api/v1/knowledge/sources | 註冊或匯入知識來源 |
 | GET | /api/v1/tools | 列出目前使用者可用的工具 |
+| POST | /api/v1/devices/pairing | 啟動已認證的 Local Agent 配對流程（未來） |
+| POST | /api/v1/devices/{id}/heartbeat | 接收裝置 Heartbeat（未來） |
+| GET | /api/v1/devices | 列出目前使用者已註冊裝置（未來） |
+| DELETE | /api/v1/devices/{id} | 撤銷已註冊裝置（未來） |
 | GET | /actuator/health | 健康檢查 |
 
 所有 Endpoint 都必須驗證資源擁有權及存取權限。認證 API 的細節依選定的本機身分驗證方案決定。
@@ -233,6 +266,9 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 - **ToolDefinition：**工具 Schema、風險等級、所需權限及啟用狀態。
 - **ToolExecution：**呼叫者、工具、參數摘要、結果、耗時及 Correlation ID。
 - **AuditEvent：**操作者、動作、目標、時間及結果。
+- **Device：**使用者／企業關聯、裝置身分、狀態、最後 Heartbeat 及憑證中繼資料。
+- **DeviceFolderGrant：**裝置、已授權資料夾範圍、權限等級及撤銷狀態。
+- **LocalToolDefinition：**允許的本機操作、輸入 Schema、風險等級及所需權限。
 
 資料庫結構必須透過版本化 Migration 管理。
 
@@ -248,6 +284,8 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 | Portability | 透過文件化的 Docker Compose 設定啟動本機環境 |
 | Observability | Correlation ID、結構化日誌、Health Check 及關鍵 Metrics |
 | Cost Control | 可設定模型、Token 上限，並提供 Mock／Local 方案 |
+| Device Security | 裝置身分隔離、資料夾範圍授權、撤銷及本機操作稽核 |
+| Data Minimization | 僅在必要且已授權時傳輸本機內容 |
 
 具體效能數值需在開發環境完成基準測試後再訂定。
 
@@ -259,6 +297,7 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 - **Failure Test：**Provider Timeout、模型輸出格式錯誤、Tool Failure、資料庫不可用。
 - **End-to-End Test：**使用者提問、取得有權限的知識、收到附來源的回答，並成功呼叫允許的唯讀工具。
 - **Deterministic Test：**使用 Mock 模型／Provider 回應，確保 CI 不需要付費 API。
+- **未來 Local Agent 測試：**驗證裝置配對／撤銷、資料夾範圍限制、跨使用者／裝置隔離、離線行為、高風險操作確認及稽核事件。
 
 ## 12. MVP 驗收標準
 
@@ -276,6 +315,8 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 10. 工具執行與關鍵錯誤均可稽核。
 11. CI 自動化測試通過，且不需要付費 LLM 訂閱。
 
+Local Agent 安裝、裝置配對及直接操作本機檔案，明確不屬於 MVP 驗收範圍。
+
 ## 13. 開發 Roadmap
 
 | 階段 | 交付成果 |
@@ -290,6 +331,8 @@ MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須
 | 7. 可觀測性 | Audit Event、Metrics、結構化日誌、Health Check |
 | 8. Frontend | 對話介面及必要的管理畫面 |
 | 9. 強化與驗收 | 資安、整合、故障及端對端測試；補齊文件 |
+| 10. Local Agent 基礎能力（MVP 後） | 裝置身分、配對、安全主動連線、Heartbeat 及撤銷 |
+| 11. 本機檔案工具（MVP 後） | 使用者授權資料夾、唯讀／搜尋工具，再逐步加入受控寫入操作 |
 
 每個階段都必須有可審查的交付成果，且測試通過後才能擴大下一階段範圍。
 
@@ -301,6 +344,8 @@ enterprise-operation-assistant/
 │   └── (Spring Boot application)
 ├── frontend/
 │   └── (React + TypeScript application)
+├── local-agent/                  # MVP 後；每台裝置安裝的本機程式
+│   └── (Java application)
 ├── docs/
 │   ├── PROJECT-SPEC.en.md
 │   └── PROJECT-SPEC.zh-TW.md
@@ -343,7 +388,11 @@ AI Coding Agent 是開發助手，不是可以不經審查就自行決定專案�
 - Frontend 認證與 Session 管理策略。
 - MCP 是納入第一版 MVP，或作為 P1 擴充。
 - 初期效能及併發目標。
+- Local Agent 的安裝包形式及支援的作業系統。
+- 裝置身分機制、配對流程、憑證輪替及離線行為。
+- 本機檔案操作範圍，以及寫入／刪除操作的確認政策。
+- 企業停用 Local Agent、限制工具及資料夾範圍的政策模型。
 
 ## 17. 專案成功標準
 
-本專案作為作品集的成功標準，是證明具備設計及實作安全、可觀測、模型供應商無關的企業 AI 應用能力，而不只是包裝一個聊天機器人。關鍵成果包括可運作的程式碼、有意義的測試、清楚的架構、具權限控管的 RAG、受政策管理的工具執行，以及可重現的本機部署方式。
+本專案作為作品集的成功標準，是證明具備設計及實作安全、可觀測、模型供應商無關的企業 AI 應用能力，而不只是包裝一個聊天機器人。關鍵成果包括可運作的程式碼、有意義的測試、清楚的架構、具權限控管的 RAG、受政策管理的工具執行，以及可重現的本機部署方式。產品長期方向也包含安全且選配的 Local Agent，支援使用者授權的本機檔案工作流程。
