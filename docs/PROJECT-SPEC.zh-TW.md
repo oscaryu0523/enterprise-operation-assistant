@@ -1,7 +1,7 @@
 # 企業智慧維運 AI Agent
 ## 產品與技術規格書
 
-> 版本：1.1  
+> 版本：1.2  
 > 狀態：初版基準規格  
 > 主要語言：繁體中文  
 > 最後更新：2026-11-21
@@ -196,21 +196,21 @@ flowchart TD
 
 | 層級 | 技術 | 說明 |
 |---|---|---|
-| Backend | Java 17+／Spring Boot 3.x | 主要應用程式 |
-| AI Framework | Spring AI | 模型及 Vector Store 整合 |
+| Backend | JDK 21 LTS／Spring Boot 4.2.x | 主要應用程式；採用該版本線最新穩定修補版 |
+| AI Framework | Spring AI 2.1.x | 與 Spring Boot 4.2.x 相容的穩定版本線；整合模型及 Vector Store |
 | Frontend | React + TypeScript | 對話與管理介面 |
 | Database | PostgreSQL + pgvector | 業務資料與向量檢索 |
 | Cache | Redis（選配） | 有明確快取需求再加入 |
 | Security | Spring Security | 認證與授權 |
 | Local Model | Ollama 相容執行環境 | 選配的本機推論 |
-| Testing | JUnit 5、Mockito、Testcontainers | 單元與整合測試 |
+| Testing | JUnit Jupiter（版本由 Spring Boot 管理）、Mockito、Testcontainers | 單元與整合測試 |
 | Packaging | Docker／Docker Compose | 可重現的本機環境 |
 | CI | GitHub Actions | 建置、測試與品質檢查 |
 | Observability | Micrometer、Structured Logging | Metrics 與診斷 |
 | Optional AI Service | Python + FastAPI | 僅在 Java 服務不適合實作特定能力時加入 |
 | Future Local Agent | Java（初期優先） | 每台裝置安裝的輕量程式，MVP 後獨立交付 |
 
-MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須額外維護的第二套 Backend。
+MVP 使用模組化單體架構。Python 是選配的輔助服務，不是必須額外維護的第二套 Backend。基線採用 JDK 21 LTS、Spring Boot 4.2.x 與 Spring AI 2.1.x 穩定版本；由各自 BOM 管理相容依賴，並採用該版本線最新穩定修補版。避免使用 Milestone、Release Candidate 與 Snapshot。每個實作階段開始前，重新確認官方相容性與支援狀態。
 
 ## 7. 資安需求
 
