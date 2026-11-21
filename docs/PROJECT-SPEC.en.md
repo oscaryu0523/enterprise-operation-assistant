@@ -1,7 +1,7 @@
 # Enterprise Operation Assistant
 ## Product & Technical Specification
 
-> Version: 1.1  
+> Version: 1.2  
 > Status: Initial baseline  
 > Primary language: English  
 > Last updated: 2026-11-21
@@ -196,21 +196,21 @@ flowchart TD
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend | Java 17+ / Spring Boot 3.x | Main application |
-| AI Framework | Spring AI | Model and vector-store integration |
+| Backend | JDK 21 LTS / Spring Boot 4.2.x | Main application; use the latest stable patch in the selected line |
+| AI Framework | Spring AI 2.1.x | Stable line compatible with Spring Boot 4.2.x; model and vector-store integration |
 | Frontend | React + TypeScript | Chat and administration UI |
 | Database | PostgreSQL + pgvector | Application data and vector search |
 | Cache | Redis (optional) | Add when a concrete need exists |
 | Security | Spring Security | Authentication and authorization |
 | Local model | Ollama-compatible runtime | Optional local inference |
-| Testing | JUnit 5, Mockito, Testcontainers | Unit and integration tests |
+| Testing | JUnit Jupiter (version managed by Spring Boot), Mockito, Testcontainers | Unit and integration tests |
 | Packaging | Docker / Docker Compose | Reproducible local environment |
 | CI | GitHub Actions | Build, test, and quality checks |
 | Observability | Micrometer, structured logging | Metrics and diagnostics |
 | Optional AI service | Python + FastAPI | Only for capabilities unsuitable for the Java service |
 | Future Local Agent | Java (initial preference) | Lightweight per-device process; separate deliverable after MVP |
 
-Use a modular monolith for the MVP. Python is optional, not a mandatory second backend.
+Use a modular monolith for the MVP. Python is optional, not a mandatory second backend. Pin JDK 21 LTS and stable Spring Boot 4.2.x / Spring AI 2.1.x releases; use the latest stable patch versions managed by their BOMs, and avoid milestone, release-candidate, and snapshot builds. Recheck official compatibility and support status when starting each implementation phase.
 
 ## 7. Security Requirements
 
