@@ -2,32 +2,33 @@
 
 ## 開發方式
 
-本專案採用 **Agent 主導實作，使用者負責審查與學習** 的方式。使用者決定產品目標、優先級及是否接受成果；Agent 負責讀取規格與程式碼、提出計畫、執行已核准的工作、檢查結果，並用清楚的方式解釋異動。
+本專案採用 **AI Agent（人工智慧代理）主導實作，使用者負責審查與學習** 的方式。使用者決定產品目標、優先級及是否接受成果；Agent 負責讀取規格與程式碼、提出計畫、執行已核准的工作、檢查結果，並用清楚的方式解釋異動。
 
 Agent 是開發執行者，不是產品方向的最終決策者。不得把未確認的猜測當成需求，也不得為了方便而擴大任務範圍。
 
 ## Agent 角色
 
-- **使用者：**Product Owner，決定目標、優先級、架構與安全取捨，審查結果並核准合併。
-- **Codex：**預設擔任 Supervisor 與主要 Implementer，負責查閱 Repository、拆解任務、準備計畫、實作、驗證及整合交付成果；整合不代表可合併至 `main`。
-- **Claude Code：**預設擔任獨立 Reviewer，以唯讀方式檢查規格、Diff、檢查證據、安全與回歸風險。若 Claude Code 實作某任務，則交換 Implementer 與 Reviewer。
-- **交接方式：**目前採人工交接；PR 建立後分享已核准規格、PR 連結與 Diff、檢查結果及審查問題。未實際取得獨立 Reviewer 的審查結果，不得宣稱已完成雙 Agent Review。
+- **使用者（Product Owner，產品負責人）：**決定目標、優先級、架構與安全取捨，審查結果並核准合併。
+- **協調者（Supervisor）：**預設由 Codex 擔任，負責查閱程式碼儲存庫（Repository）、拆解任務、準備計畫及整合交付成果；整合不代表可合併至 `main`。
+- **實作者（Implementer）：**預設由 Codex 擔任，個別任務可由 Claude Code 擔任，負責實作與驗證。
+- **獨立審查者（Reviewer）：**預設由 Claude Code 擔任，以唯讀方式檢查規格、變更差異（Diff）、檢查證據、資安與回歸風險。若 Claude Code 擔任實作者，則交換實作者與審查者角色。
+- **交接方式：**目前採人工交接；Pull Request（PR，合併請求）建立後分享已核准規格、PR 連結與 Diff、檢查結果及審查問題。未實際取得獨立 Reviewer 的審查結果，不得宣稱已完成雙 Agent 審查。
 
-角色權責、Review handoff 範本與 F01 CI 範圍詳見 [`agent-roles.md`](agent-roles.md)。
+角色權責、審查交接（Review handoff）範本與 F01 CI 範圍詳見 [`agent-roles.md`](agent-roles.md)。
 
 ## 方法組合
 
-- **SDD（Specification-Driven Development）：**先記錄目標、範圍、不做事項、架構與驗收條件。
-- **BDD（Behavior-Driven Development）：**用 Given／When／Then 描述使用者行為，涵蓋正常、錯誤及權限情境。
-- **EDD（Evaluation-Driven Development）：**Agent／LLM 功能先建立固定評估資料與指標，評估任務成功、工具呼叫、引用依據、權限、延遲及成本。
-- **TDD（Test-Driven Development）：**程式碼行為先寫失敗測試，再完成最小實作並重構（Red → Green → Refactor）。
-- **Risk-Driven：**優先驗證授權、Prompt Injection、工具濫用、資料外洩、模型故障、重試與高影響操作。
+- **規格導向開發（SDD，Specification-Driven Development）：**先記錄目標、範圍、不做事項、架構與驗收條件。
+- **行為導向開發（BDD，Behavior-Driven Development）：**用 Given／When／Then（前提／事件／結果）描述使用者行為，涵蓋正常、錯誤及權限情境。
+- **評估導向開發（EDD，Evaluation-Driven Development）：**Agent／LLM 功能先建立固定評估資料與指標，評估任務成功、工具呼叫、引用依據、權限、延遲及成本。
+- **測試導向開發（TDD，Test-Driven Development）：**程式碼行為先寫失敗測試，再完成最小實作並重構（Red／Green／Refactor，紅燈／綠燈／重構）。
+- **風險導向驗證（Risk-driven validation）：**優先驗證授權、Prompt Injection（提示注入）、工具濫用、資料外洩、模型故障、重試與高影響操作。
 
-EDD 只在功能包含模型或 Agent 行為時設為 Gate；文件或基礎設施變更不需要虛構模型評估。
+EDD 只在功能包含模型或 Agent 行為時設為必要關卡；文件或基礎設施變更不需要虛構模型評估。
 
 Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 EDD 資料集與可量測門檻，避免測試結果因樣本變動而失去可比較性。
 
-本專案以繁體中文撰寫操作說明，保留必要英文術語並附中文解釋；程式識別字、指令、檔名及 CI 設定照原文書寫，不翻譯。`PROJECT-SPEC.en.md` 與 `PROJECT-SPEC.zh-TW.md` 維持中英文兩份產品規格。規則優先順序為 `AGENTS.md`（執行與安全規則）→ `docs/agent-roles.md`（角色與關卡）→ 本指南（操作流程）；產品規格是產品需求的權威來源。若文件衝突，先依較高優先規則處理並提出修正。
+本專案的 `AGENTS.md`、`docs/agent-roles.md` 與本指南以繁體中文撰寫，必要英文術語首次出現時附中文解釋；程式識別字、指令、檔名及 CI 設定維持原文。`PROJECT-SPEC.en.md` 與 `PROJECT-SPEC.zh-TW.md` 是分開維護的中英文產品規格。規範優先順序見 `AGENTS.md`；產品需求以產品規格為準，本規格第 15 節只提供非規範性摘要。
 
 ## 每項任務的工作循環
 
@@ -65,9 +66,9 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 - 文件專用變更檢查 Markdown 結構、連結及 Diff，不必執行應用程式測試。
 - 檢查完整 Diff：正確性、資安、錯誤處理、回歸風險、機密資料、意外檔案及範圍膨脹。
 - 測試未通過時，修正後重跑；若受環境或外部服務限制，明確標示未驗證部分。
-- 本機檢查完成後，先把 Diff 與結果交給使用者審查。使用者核准 H2 後才 Commit、Push 並建立 PR。
-- PR 建立後才交給獨立 Reviewer 唯讀審查，提供規格、PR 連結、Diff、檢查結果及明確問題；要求 Critical／Major／Minor 分級、檔案行號、證據與建議修正。Reviewer 預設是 Claude Code。
-- 若有發現，Codex 修正並執行相關檢查，把本輪變更 Diff 提供使用者審查後更新同一個 PR，再請 Reviewer 複審。原 H2 授權涵蓋核准範圍內的後續修正；若改變範圍，重新走 H1。Critical／Major 必須修正或由使用者明確接受風險；Minor 可修正或回覆。
+- 本機檢查完成後，實作者先把 Diff、檢查結果、設計理由、檔案清單與風險交給使用者審查。使用者核准 H2 後才 Commit、Push 並建立 PR。
+- PR 建立後才交給獨立 Reviewer 唯讀審查，提供規格、PR 連結、Diff、檢查結果及明確問題；要求 Critical／Major／Minor 分級、證據、影響與建議修正。每個能對應到變更行的發現，都必須在 PR 建立錨定相關行的逐行 Review comment；多行問題使用最小必要行範圍。每則 comment 說明問題、可能後果及建議修正；只有無法合理錨定到 Diff 行的發現才用一般 PR comment，並說明原因。另以 review summary 彙整結論。每輪複審也要按行錨定並記錄在 PR。預設 Reviewer 是 Claude Code；若 Claude Code CLI 無 GitHub 寫入權限，由 Supervisor 透明代貼原始發現並標明 Reviewer 與代貼者，不可冒稱 Claude Code 帳號發文。
+- 若有發現，實作者修正並執行相關檢查，再把本輪 Diff、檢查結果、設計理由、受影響檔案及風險提供使用者；**等待使用者明確同意後**才 Commit／Push 更新同一個 PR，然後請 Reviewer 複審並將結果記錄在 PR。每輪都要明確取得使用者同意；若改變範圍，重新走 H1。Critical／Major 必須修正或由使用者明確接受並記錄風險；Minor 須修正並複審，或在 PR 回覆／記錄。
 
 ### 5. 交付與學習
 
@@ -78,12 +79,12 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 - 執行了哪些測試／檢查及結果。
 - 使用者審查時應特別看的決策、風險或待辦事項。
 
-使用三個人工關卡：H1 使用者核准規格／計畫後才開始非瑣碎工作；H2 使用者審查 Codex 完成的本機 Diff 與檢查結果後，授權 Commit、Push 及建立 PR；PR 建立後由 Claude Code 審查。若需修正，Codex 每輪先將變更 Diff 提供使用者檢視，再更新同一個 PR；H2 授權涵蓋核准範圍內的修正提交，若改變範圍則重新走 H1；H3 使用者確認 Reviewer 發現已處理、CI／EDD 結果及未解風險後，明確核准合併至 `main`。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。H2 前不得 Commit、Push 或建立 PR。
+使用三個人工關卡：H1 使用者核准非瑣碎工作的規格／計畫；H2 使用者審查本機 Diff、檢查結果、設計理由、檔案清單與風險後，明確授權 Commit、Push 及建立 PR；PR 建立後由 Reviewer 審查。每輪修正都先交付新 Diff、檢查結果、設計理由、受影響檔案與風險，等使用者明確同意後才更新同一個 PR，若改變範圍則重新走 H1。H3 必須符合以下條件：最新 Reviewer 複審已確認所有修正；沒有未處理的 Critical／Major，除非使用者已明確接受並在 PR 記錄風險（接受的項目不需再複審）；Minor 若修正須複審，若以 PR 回覆處理則記錄即可；最終 Review／CI 狀態、設計理由與剩餘風險已提供使用者。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。使用者明確核准後才可合併至 `main`。H2 前不得 Commit、Push 或建立 PR。
 
-## CI/CD 原則
+## 持續整合與交付（CI/CD）原則
 
-- **F01 即 Roadmap Phase 1 Foundation：**建立 GitHub Actions PR CI 與 Docker Compose 本機可重現啟動。CI 執行 Java 21 建置／編譯、單元測試、已選定的格式與靜態品質檢查、Markdown 文件檢查，以及依賴與機密掃描。整合測試等資料庫與應用路徑建立後再加入；EDD 在 Agent 功能出現後加入。
-- CI 僅使用 `pull_request`（不可用 `pull_request_target`）、`permissions: contents: read`，不使用 Repository secrets。每個指定的必要檢查都必須在每個 PR 回報結果；避免在整個 Workflow 層級使用路徑篩選，造成必要檢查停留在 Pending。設定 `main` branch protection 或 ruleset，要求指定 CI checks 全綠，並驗證失敗檢查確實會阻止合併；若目前方案無法強制，記錄限制。
+- **F01 即 Roadmap Phase 1 Foundation：**建立 GitHub Actions PR 持續整合（CI）與 Docker Compose 本機可重現啟動。CI 執行 Java 21 建置／編譯、單元測試、已選定的格式與靜態品質檢查、Markdown 文件檢查，以及依賴與機密掃描。整合測試等資料庫與應用路徑建立後再加入；EDD 在 Agent 功能出現後加入。
+- CI 僅使用 `pull_request`（不可用 `pull_request_target`）、`permissions: contents: read`，不使用 Repository secrets。GitHub Actions 固定到完整 Commit SHA，不用浮動 Tag。每個指定的必要檢查都必須在每個 PR 回報結果；避免在整個 Workflow 層級使用路徑篩選，造成必要檢查停留在 Pending。設定 `main` Branch Protection／Ruleset，要求必須經 PR、指定 CI checks 全綠且管理員不可略過；驗證失敗檢查確實會阻止合併，若目前方案無法強制則記錄限制。
 - 必要 CI 檢查全綠後才能合併；不自動合併。
 - F01 使用 Docker Compose 確保本機可重現啟動，不設定部署到 staging 或 production。
 - 等部署目標明確後再設計 CD。未來可先部署 staging；production 必須使用環境核准，由使用者明確授權，不能讓 Agent 或 CI 自動發布。

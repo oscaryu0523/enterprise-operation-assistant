@@ -367,25 +367,13 @@ enterprise-operation-assistant/
 
 ## 15. Agent 驅動開發工作流程
 
-本專案採用 Agent 主導實作的方式：使用者負責產品方向、優先級、驗收與最終審查；Coding Agent 負責檢查規格與程式碼、提出計畫、完成已核准的範圍、驗證結果並解釋設計，讓使用者能在審查中學習。
+本節為非規範性摘要。使用者負責產品方向、優先級、驗收與合併決策；預設由 Codex 擔任 Supervisor／Implementer，Claude Code 擔任唯讀 Reviewer。Claude Code 擔任實作者時交換角色。
 
-預設由 Codex 擔任 Supervisor 與主要 Implementer，Claude Code 擔任獨立且唯讀的 Reviewer；使用者是 Product Owner 並保有最終合併決策權。H2 核准後建立 PR，再將已核准規格、PR 連結、Diff、檢查證據及明確審查問題交給 Reviewer。若 Claude Code 實作任務，則交換角色。角色責任與 Review handoff 範本見 `docs/agent-roles.md`。
+非瑣碎任務先核准規格與計畫，再開始實作。採用 SDD、BDD、TDD 與風險導向驗證；模型或 Agent 行為另須在實作前定義 EDD。每次只在一個短期分支處理一項已核准任務。
 
-每項非瑣碎的實作、規格或流程變更開始前，Agent 先閱讀相關規格與 Repository 狀態，整理目標、假設、邊界情況、驗收條件、風險及預計修改檔案，再提出精簡計畫。使用者確認計畫後才開始工作。只有不改變需求、範圍或驗收條件的小型明確文件修正，以及明確指定的一行調整，才可直接處理，但仍須說明範圍。
+流程為：Implementer 完成本機實作與檢查；H2 使用者審查本機 Diff、檢查結果、設計理由、檔案清單及風險，明確核准後才 Commit、Push、建立 PR；Reviewer 再審查 PR。每項能對應到變更行的發現，必須以 PR 逐行 Review comment 錨定至相關行，說明問題、證據、影響及建議修正；多行問題僅標註最小必要行範圍。只有無法合理錨定 Diff 行時才用一般 PR comment，並說明原因；另提供 Review summary。每輪修正都要將新 Diff、檢查結果、理由、受影響檔案及風險提供使用者，等使用者明確同意後才能 Commit／Push 更新 PR；改變範圍則重新走 H1。H3 前須由 Reviewer 複審修正，沒有未處理的 Critical／Major（除非使用者已接受並記錄風險），Minor 已修正並複審或已回覆記錄，並提供必要 CI／EDD 結果。使用者檢視最終 Review／CI 狀態及剩餘風險後明確核准合併。F01 CI 建立前，將缺少 CI 列為已知限制。
 
-使用 SDD 定義範圍與驗收標準，使用 BDD 以 Given／When／Then 描述可觀察行為，程式碼變更採 TDD（Red → Green → Refactor），並以風險導向方式優先驗證資安路徑。包含模型或 Agent 行為的功能在實作前先定義版本化、每次執行固定的 EDD 資料集與可量測門檻，評估任務成功率、工具呼叫正確性、引用依據、權限、延遲及成本；無關功能不必加入 EDD。
-
-一次只執行一項已核准的明確任務，並從 main 建立短期分支。維持 main 可用，不維護長期 develop 分支。使用聚焦的 feature、fix、docs 或 refactor 分支；完成審查後再合併回 main。
-
-Agent 應採最小且完整的異動，避免無關重構，並同步更新受影響文件。程式碼異動要新增或更新相關測試；執行最相關的檢查，審查完整 Diff 的正確性、資安、意外檔案及範圍膨脹，並回報結果與尚未驗證的部分。純文件變更檢查文件結構與 Diff，不必執行應用程式測試。
-
-採三個人工關卡：H1 使用者核准規格／計畫後才開始非瑣碎工作；Codex 完成本機檢查後，H2 使用者審查本機 Diff 與結果，再授權 Commit、Push 及建立 PR；PR 建立後由 Claude Code 審查。每輪修正時，Codex 先把修改 Diff 與檢查結果交給使用者檢視，再更新同一個 PR；H2 授權涵蓋核准範圍內的後續提交，若改變範圍則重新走 H1。Critical／Major 發現必須修正或由使用者明確接受風險，並交由 Reviewer 複審。H3 使用者確認 Review 發現已處理，檢視 PR CI／EDD 結果與未解風險後，明確核准合併至 `main`。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。H2 前不得 Commit、Push 或建立 PR。完成後，Agent 說明異動內容、原因、重要設計選擇、修改檔案、執行的檢查，以及使用者應審查或學習的重點。
-
-獨立 Reviewer 在 PR 上檢查 Diff、測試與風險；Critical／Major 問題必須修正或由使用者明確接受風險，並在修正後重新審查；Minor 可修正或回覆說明。F01 即 Roadmap Phase 1 Foundation：建立 Pull Request CI 與可重現的 Docker Compose 本機啟動。初期 CI 包含 Java 21 建置／編譯、單元測試、已設定的品質檢查、Markdown 驗證、依賴與機密掃描；資料庫路徑建立後再加入整合測試，Agent 行為建立後再加入 EDD。CI 使用 `pull_request`（不可用 `pull_request_target`）、`permissions: contents: read`，且不使用 Repository secrets。每個指定的必要檢查都必須在每個 PR 回報結果；避免在整個 Workflow 層級使用路徑篩選，讓必要檢查停留在 Pending。設定 `main` branch protection 或 ruleset 要求指定 CI checks 全綠，並驗證失敗檢查確實會阻止合併；若平台不支援強制，記錄限制。F01 不做部署；待部署目標確定後再規劃 CD，正式環境部署必須經人工明確核准。
-
-文件規範：操作文件以繁體中文撰寫，保留必要英文技術術語並附中文解釋；程式識別字、指令、檔名及 CI 設定維持原文。產品規格保留獨立的英文及繁體中文版。規則優先順序為 `AGENTS.md`（執行與安全規則）→ `docs/agent-roles.md`（角色與關卡）→ `docs/DEVELOPMENT-WORKFLOW.md`（操作流程）；產品規格是產品需求的權威來源。遇到衝突時依優先順序處理並更新相關文件。
-
-不得向 Agent 提供正式環境機密。Prompt、文件、模型輸出及工具參數一律視為不可信資料。採用最小權限。刪除、不可逆、對外可見或影響正式環境的操作，必須先取得使用者明確核准。不得跳過或隱瞞失敗的測試。
+F01 是 Roadmap Phase 1 Foundation：建立可重現的 Docker Compose 本機啟動及必要 PR CI。Agent 執行與安全規則以 `AGENTS.md` 為準；角色及人工關卡以 `docs/agent-roles.md` 為準；操作細節以 `docs/DEVELOPMENT-WORKFLOW.md` 為準。操作文件以繁體中文為主，必要英文術語附中文說明；程式識別字、指令、檔名及 CI 設定保留原文。產品需求以本規格為準；本節摘要不覆蓋上述規範。不得提供正式環境機密、信任 Prompt／文件／模型輸出／工具參數，或跳過及隱瞞失敗測試。
 
 ## 16. 待確認事項
 
