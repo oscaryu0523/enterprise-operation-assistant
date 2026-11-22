@@ -8,13 +8,13 @@ Agent 是開發執行者，不是產品方向的最終決策者。不得把未�
 
 ## Agent 角色
 
-- **使用者（Product Owner，產品負責人）：**決定目標、優先級、架構與安全取捨，審查結果並核准合併。
-- **協調者（Supervisor）：**預設由 Codex 擔任，負責查閱程式碼儲存庫（Repository）、拆解任務、準備計畫及整合交付成果；整合不代表可合併至 `main`。
-- **實作者（Implementer）：**預設由 Codex 擔任，個別任務可由 Claude Code 擔任，負責實作與驗證。
-- **獨立審查者（Reviewer）：**預設由 Claude Code 擔任，以唯讀方式檢查規格、變更差異（Diff）、檢查證據、資安與回歸風險。若 Claude Code 擔任實作者，則交換實作者與審查者角色。
-- **交接方式：**目前採人工交接；Pull Request（PR，合併請求）建立後分享已核准規格、PR 連結與 Diff、檢查結果及審查問題。未實際取得獨立 Reviewer 的審查結果，不得宣稱已完成雙 Agent 審查。
+- **使用者（Product Owner，產品負責人）：**決定目標與優先級，核准一次功能 `SPEC.md`；最後檢視成果並核准合併。
+- **PM／架構師（Product Manager / Architect）：Claude Code，同一個規格對話。**釐清使用情境與驗收條件，設計流程、介面、資料、錯誤處理及限制，並維護根目錄 `SPEC.md`；不實作產品程式碼。
+- **工程師（Engineer / Implementer）：Codex。**依核准的 `SPEC.md` 實作、測試、自我審查並交付 Git diff 與證據；只能在核准範圍內修正。
+- **QA（Quality Assurance）：Claude Code，新開獨立對話。**只讀核准的 `SPEC.md`、PR Diff、測試／CI 證據與驗收指令；逐條驗收並回報可重現的 findings，不修改程式碼、不核准或執行合併。
+- **交接方式：**人工交接，但以 `SPEC.md` 和 Git diff 為共同依據。PM／架構對話不得擔任同一功能的 QA；未實際取得全新 QA 對話的驗收結果，不可宣稱完成獨立 QA。
 
-角色權責、審查交接（Review handoff）範本與 F01 CI 範圍詳見 [`agent-roles.md`](agent-roles.md)。
+角色權責、H1／H2／H3 關卡、QA 交接範本與 F01 CI 範圍詳見 [`agent-roles.md`](agent-roles.md)。
 
 ## 方法組合
 
@@ -41,14 +41,14 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 
 ### 2. 提出計畫
 
-在修改程式碼前，先向使用者提供精簡計畫，包含：
+Claude Code PM／架構師先在同一個對話釐清需求、整理架構並建立 Repository 根目錄 `SPEC.md`，包含：
 
-- 要完成的行為及驗收條件。
-- 預計修改的檔案與模組。
-- 主要設計選擇、風險及需要留意的相容性。
-- 預計新增或執行的測試與檢查。
+- 目標、範圍、不做事項、使用者情境與可驗收的 Given／When／Then 條件。
+- 流程、API／介面、資料模型、相依性與錯誤／逾時行為。
+- 主要設計理由、安全與回歸風險、相容性及尚未確定事項。
+- 預計新增或執行的測試與驗收指令。
 
-等待使用者確認計畫後再開始非瑣碎的實作、規格或流程變更。只有小型、明確且不改變需求、範圍或驗收條件的文件修正，以及明確指定的一行調整，才可直接處理；仍須說明範圍。
+使用者在 Codex 開始實作前核准 `SPEC.md` 一次。核准涵蓋該範圍內的實作與 QA 修正循環；需求或驗收條件變更時，先更新 `SPEC.md` 並重新取得核准。`SPEC.md` 是目前功能規格，不取代 `docs/PROJECT-SPEC.en.md`／`docs/PROJECT-SPEC.zh-TW.md` 的產品需求。
 
 ### 3. 小步實作
 
@@ -67,8 +67,8 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 - 檢查完整 Diff：正確性、資安、錯誤處理、回歸風險、機密資料、意外檔案及範圍膨脹。
 - 測試未通過時，修正後重跑；若受環境或外部服務限制，明確標示未驗證部分。
 - 本機檢查完成後，實作者先把 Diff、檢查結果、設計理由、檔案清單與風險交給使用者審查。使用者核准 H2 後才 Commit、Push 並建立 PR。
-- PR 建立後才交給獨立 Reviewer 唯讀審查，提供規格、PR 連結、Diff、檢查結果及明確問題；要求 Critical／Major／Minor 分級、證據、影響與建議修正。每個能對應到變更行的發現，都必須在 PR 建立錨定相關行的逐行 Review comment；多行問題使用最小必要行範圍。每則 comment 說明問題、可能後果及建議修正；只有無法合理錨定到 Diff 行的發現才用一般 PR comment，並說明原因。另以 review summary 彙整結論。每輪複審也要按行錨定並記錄在 PR。預設 Reviewer 是 Claude Code；若 Claude Code CLI 無 GitHub 寫入權限，由 Supervisor 透明代貼原始發現並標明 Reviewer 與代貼者，不可冒稱 Claude Code 帳號發文。
-- 若有發現，實作者修正並執行相關檢查，再把本輪 Diff、檢查結果、設計理由、受影響檔案及風險提供使用者；**等待使用者明確同意後**才 Commit／Push 更新同一個 PR，然後請 Reviewer 複審並將結果記錄在 PR。Reviewer 確認已修正後，逐項回覆原 inline thread `Resolved after re-review` 並標記 Resolved；另留複審摘要列出已解決及未解決項目。未經 Reviewer 確認不得標記 Resolved。每輪都要明確取得使用者同意；若改變範圍，重新走 H1。Critical／Major 必須修正或由使用者明確接受並記錄風險；Minor 須修正並複審，或在 PR 回覆／記錄。
+- QA 開始前先核准 H2，建立 PR，然後在全新 Claude Code 對話提供已核准 `SPEC.md`、PR 連結、最新 Diff、測試／CI 證據及驗收指令。每個可錨定變更行的 finding 必須在 PR 以逐行 Review comment 標示，說明嚴重度、問題、證據、影響及修正建議；另用 review summary 彙整。若 CLI 無 GitHub 寫入權限，由 Codex 透明代貼並標明 Reviewer／代貼者。
+- Codex 在核准 `SPEC.md` 範圍內修正、執行檢查並更新同一 PR，不必每輪重新請使用者核准。每次複審開新 Claude Code 對話，交付 `SPEC.md`、最新 Diff、檢查證據與前次 findings／處理狀態。QA 確認修正後，逐項回覆原 inline thread `Resolved after re-review` 並標記 Resolved，再留摘要列出已解決及未解決項目；未確認不得標記 Resolved。範圍改變時停下，更新 `SPEC.md` 並重新取得 H1 核准。
 
 ### 5. 交付與學習
 
@@ -79,7 +79,7 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 - 執行了哪些測試／檢查及結果。
 - 使用者審查時應特別看的決策、風險或待辦事項。
 
-使用三個人工關卡：H1 使用者核准非瑣碎工作的規格／計畫；H2 使用者審查本機 Diff、檢查結果、設計理由、檔案清單與風險後，明確授權 Commit、Push 及建立 PR；PR 建立後由 Reviewer 審查。每輪修正都先交付新 Diff、檢查結果、設計理由、受影響檔案與風險，等使用者明確同意後才更新同一個 PR，若改變範圍則重新走 H1。H3 必須符合以下條件：最新 Reviewer 複審已確認所有修正；沒有未處理的 Critical／Major，除非使用者已明確接受並在 PR 記錄風險（接受的項目不需再複審）；Minor 若修正須複審，若以 PR 回覆處理則記錄即可；最終 Review／CI 狀態、設計理由與剩餘風險已提供使用者。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。使用者明確核准後才可合併至 `main`。H2 前不得 Commit、Push 或建立 PR。
+使用三個人工關卡：H1 Claude Code PM／架構師在同一對話完成根目錄 `SPEC.md`，使用者核准一次後才開始實作；這次核准涵蓋同一範圍內的 Codex 實作與 QA 修正循環，範圍改變才重新核准。H2 Codex 完成本機 Diff 與檢查後，使用者明確授權初次 Commit、Push 及建立 PR；授權涵蓋同一 SPEC 範圍內後續 QA 修正提交。PR 建立後由全新 Claude Code QA 對話按 SPEC、Diff、檢查證據與驗收指令逐條驗收。QA 確認已修正的 finding，須回覆 inline thread `Resolved after re-review` 並標記 Resolved，再在 PR 摘要已解決及未解決項目。H3 必須符合以下條件：最新 QA 複審已確認所有修正；沒有未處理的 Critical／Major，除非使用者已明確接受並在 PR 記錄風險（接受的項目不需再複審）；Minor 若修正須複審，若以 PR 回覆處理則記錄即可；最終 QA／CI 狀態、設計理由與剩餘風險已提供使用者。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。使用者明確核准後才可合併至 `main`。H2 前不得 Commit、Push 或建立 PR。
 
 ## 持續整合與交付（CI/CD）原則
 
