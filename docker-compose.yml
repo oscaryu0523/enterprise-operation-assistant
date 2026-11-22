@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eoa
+      POSTGRES_USER: eoa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-PLACEHOLDER}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eoa -d eoa"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  app:
+    image: maven:3.10.0-eclipse-temurin-21-alpine
+    working_dir: /workspace
+    command: ["mvn", "--batch-mode", "spring-boot:run"]
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eoa
+      SPRING_DATASOURCE_USERNAME: eoa
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-PLACEHOLDER}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  maven-cache:
+  postgres-data:
