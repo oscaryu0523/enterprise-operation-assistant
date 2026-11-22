@@ -3,6 +3,7 @@ package com.enterprise.operationassistant.auth;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ class AuthControllerTest {
   // ─── 3.1 登入成功 ────────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.1 登入成功：回傳 200 與 JWT token")
   void login_withValidCredentials_returns200AndToken() {
     fail("not implemented");
@@ -46,6 +48,7 @@ class AuthControllerTest {
   }
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.1 登入成功：寫入 LOGIN_SUCCESS Audit Log")
   void login_withValidCredentials_writesAuditLog() {
     fail("not implemented");
@@ -55,6 +58,7 @@ class AuthControllerTest {
   // ─── 3.2 密碼錯誤 ────────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.2 密碼錯誤：回傳 401 invalid_credentials")
   void login_withWrongPassword_returns401() {
     fail("not implemented");
@@ -62,6 +66,7 @@ class AuthControllerTest {
   }
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.2 密碼錯誤：寫入 LOGIN_FAILED Audit Log")
   void login_withWrongPassword_writesAuditLog() {
     fail("not implemented");
@@ -71,6 +76,7 @@ class AuthControllerTest {
   // ─── 3.3 帳號不存在 ───────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.3 帳號不存在：回傳與密碼錯誤相同的 401 訊息")
   void login_withUnknownEmail_returnsSameErrorAsWrongPassword() {
     fail("not implemented");
@@ -80,6 +86,7 @@ class AuthControllerTest {
   // ─── 3.4 有效 Token ───────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.4 有效 Token：存取 /api/conversations 回傳 200")
   void getConversations_withValidToken_returns200() {
     fail("not implemented");
@@ -89,6 +96,7 @@ class AuthControllerTest {
   // ─── 3.5 無 Token ────────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.5 無 Token：回傳 401 unauthorized")
   void getConversations_withoutToken_returns401() {
     fail("not implemented");
@@ -98,6 +106,7 @@ class AuthControllerTest {
   // ─── 3.6 Token 過期 ───────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.6 Token 過期：回傳 401 token_expired")
   void getConversations_withExpiredToken_returns401() {
     fail("not implemented");
@@ -107,6 +116,7 @@ class AuthControllerTest {
   // ─── 3.7 ROLE_USER 存取管理端點 ──────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.7 ROLE_USER 存取 /api/admin/users：回傳 403 forbidden")
   void getAdminUsers_withUserRole_returns403() {
     fail("not implemented");
@@ -116,6 +126,7 @@ class AuthControllerTest {
   // ─── 3.8 ROLE_ADMIN 存取管理端點 ─────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.8 ROLE_ADMIN 存取 /api/admin/users：回傳 200")
   void getAdminUsers_withAdminRole_returns200() {
     fail("not implemented");
@@ -125,6 +136,7 @@ class AuthControllerTest {
   // ─── 3.10 健康檢查白名單 ──────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.10 /actuator/health 不需要 Token：回傳 200")
   void actuatorHealth_withoutToken_returns200() {
     fail("not implemented");

@@ -2,6 +2,7 @@ package com.enterprise.operationassistant.security;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,7 @@ class JwtServiceTest {
   // ─── Token 產生 ───────────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("generateToken：產生非空 JWT，包含正確的 sub 與 role")
   void generateToken_containsCorrectClaims() {
     fail("not implemented");
@@ -29,6 +31,7 @@ class JwtServiceTest {
   }
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("generateToken：token 不包含密碼或敏感欄位")
   void generateToken_doesNotContainSensitiveData() {
     fail("not implemented");
@@ -40,6 +43,7 @@ class JwtServiceTest {
   // ─── Token 驗證：有效 ─────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("validateToken：有效 token → 回傳 true 並可取出 email")
   void validateToken_withValidToken_returnsTrue() {
     fail("not implemented");
@@ -51,6 +55,7 @@ class JwtServiceTest {
   // ─── Token 驗證：過期 ─────────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.6 validateToken：過期 token → 拋出 TokenExpiredException")
   void validateToken_withExpiredToken_throwsException() {
     fail("not implemented");
@@ -63,6 +68,7 @@ class JwtServiceTest {
   // ─── Token 驗證：格式錯誤 ─────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("validateToken：格式錯誤的 token → 拋出 InvalidTokenException")
   void validateToken_withMalformedToken_throwsException() {
     fail("not implemented");
@@ -74,6 +80,7 @@ class JwtServiceTest {
   // ─── Token 驗證：簽章被竄改 ──────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("validateToken：簽章被竄改的 token → 拋出例外")
   void validateToken_withTamperedSignature_throwsException() {
     fail("not implemented");

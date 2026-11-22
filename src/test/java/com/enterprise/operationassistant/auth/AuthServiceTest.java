@@ -2,6 +2,7 @@ package com.enterprise.operationassistant.auth;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ class AuthServiceTest {
   // ─── 登入成功：回傳 token ─────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("login：帳號密碼正確 → 回傳含 token 的 LoginResponse")
   void login_withValidCredentials_returnsLoginResponse() {
     fail("not implemented");
@@ -41,6 +43,7 @@ class AuthServiceTest {
   // ─── 密碼錯誤：拋出例外 ───────────────────────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("login：密碼錯誤 → 拋出 AuthenticationException")
   void login_withWrongPassword_throwsException() {
     fail("not implemented");
@@ -55,6 +58,7 @@ class AuthServiceTest {
   // ─── 帳號不存在：同一例外，不洩漏差異 ───────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("login：帳號不存在 → 拋出與密碼錯誤相同的例外型別")
   void login_withUnknownEmail_throwsSameExceptionAsWrongPassword() {
     fail("not implemented");
@@ -67,6 +71,7 @@ class AuthServiceTest {
   // ─── 密碼以 BCrypt 雜湊驗證，不還原明文 ─────────────────────────────────
 
   @Test
+  @Disabled("skeleton — implement in F02")
   @DisplayName("3.9 密碼比對：使用 BCrypt，不以明文比較")
   void login_passwordVerification_usesBCrypt() {
     fail("not implemented");
