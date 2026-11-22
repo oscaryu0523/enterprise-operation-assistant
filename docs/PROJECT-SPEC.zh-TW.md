@@ -322,7 +322,7 @@ Local Agent 安裝、裝置配對及直接操作本機檔案，明確不屬於 M
 | 階段 | 交付成果 |
 |---|---|
 | 0. 規格確認 | 確認範圍、架構、開發規範及驗收標準 |
-| 1. 基礎建置 | Repository 結構、Spring Boot、設定、Docker Compose、CI |
+| 1. 基礎建置 | Repository 結構、Spring Boot、設定、可重現的 Docker Compose 本機啟動、必要的 Pull Request CI；不自動部署 |
 | 2. 身分與對話 | 認證、RBAC 基礎、對話及訊息 API |
 | 3. AI Gateway | Provider 介面、Mock Provider、本機 Provider Adapter |
 | 4. Agent Runtime | Prompt／Context 組裝、有限度編排、錯誤處理 |
@@ -340,6 +340,7 @@ Local Agent 安裝、裝置配對及直接操作本機檔案，明確不屬於 M
 
 ~~~text
 enterprise-operation-assistant/
+├── AGENTS.md
 ├── backend/
 │   └── (Spring Boot application)
 ├── frontend/
@@ -347,8 +348,12 @@ enterprise-operation-assistant/
 ├── local-agent/                  # MVP 後；每台裝置安裝的本機程式
 │   └── (Java application)
 ├── docs/
+│   ├── DEVELOPMENT-WORKFLOW.md
 │   ├── PROJECT-SPEC.en.md
-│   └── PROJECT-SPEC.zh-TW.md
+│   ├── PROJECT-SPEC.zh-TW.md
+│   ├── agent-roles.md
+│   └── adr/                        # Architecture Decision Records
+├── evals/                          # 模型／Agent 行為的版本化評估資料集
 ├── infra/
 │   └── (Docker Compose and local infrastructure)
 ├── scripts/
@@ -360,22 +365,15 @@ enterprise-operation-assistant/
 
 以上為目標結構，不代表現在就必須建立所有目錄。
 
-## 15. AI 輔助開發工作流程
+## 15. Agent 驅動開發工作流程
 
-AI Coding Agent 是開發助手，不是可以不經審查就自行決定專案方向的負責人。每項開發任務依照以下流程執行：
+本節為非規範性摘要。使用者負責產品方向、優先級、一次性的功能規格核准與最終合併；Claude Code 在同一對話擔任 PM／架構師並產出本功能根目錄 `SPEC.md`，Codex 擔任工程師，Claude Code 再以全新獨立對話擔任 QA。兩 Agent 以核准的 `SPEC.md`、PR Diff 與測試證據交接。
 
-1. 要求 Agent 檢查目前 Repository 與相關規格。
-2. 要求 Agent 釐清需求、假設、邊界情況及驗收標準。
-3. 要求 Agent 提供精簡實作計畫及預計修改的檔案清單。
-4. 先審查計畫，再允許 Agent 修改程式碼。
-5. 一次只交付一個範圍明確的實作任務。
-6. 要求 Agent 補上測試，並解釋設計決策與異動檔案。
-7. 審查 Diff，確認正確性、資安、是否有不必要重構及範圍膨脹。
-8. 本機執行測試並檢查日誌。
-9. 變更與測試確認後才 Commit。
-10. 行為或架構改變時同步更新文件。
+非瑣碎任務先核准規格與計畫，再開始實作。採用 SDD、BDD、TDD 與風險導向驗證；模型或 Agent 行為另須在實作前定義 EDD。每次只在一個短期分支處理一項已核准任務。
 
-不得將正式環境機密提供給 AI Agent。不得允許 Agent 跳過測試、存取無關檔案，或未經明確核准執行不可逆操作。
+流程為：Claude Code PM／架構師在同一對話產出本功能根目錄 `SPEC.md`；使用者在實作前核准一次，核准涵蓋範圍內的 Codex 實作與 QA 修正循環。Codex 完成本機實作與檢查後，H2 使用者審查 Diff、檢查結果、設計理由、檔案清單及風險，明確核准初次 Commit、Push 與建立 PR；該授權涵蓋同一 SPEC 範圍內的後續 QA 修正。Claude Code 在全新對話依 `SPEC.md`、PR Diff、測試證據及驗收指令逐條 QA。每項能對應變更行的發現必須以 PR 逐行 Review comment 錨定，說明嚴重度、問題、證據、影響及建議修正，另提供 review summary。QA 確認修正後，逐項回覆 inline thread `Resolved after re-review` 並標記 Resolved，再在 PR 摘要列出已解決及未解決項目；未確認前不得標記 Resolved。超出核准 SPEC 範圍須先重新取得使用者核准。H3 前須由 QA 複審確認修正、確認的 inline thread 已標記 Resolved，沒有未處理的 Critical／Major（除非使用者已接受並記錄風險），Minor 已修正並複審或已回覆記錄，並提供必要 CI／EDD 結果。使用者檢視最終 QA／CI 狀態及剩餘風險後明確核准合併。F01 CI 建立前，將缺少 CI 列為已知限制。
+
+F01 是 Roadmap Phase 1 Foundation：建立可重現的 Docker Compose 本機啟動及必要 PR CI。Agent 執行與安全規則以 `AGENTS.md` 為準；角色及人工關卡以 `docs/agent-roles.md` 為準；操作細節以 `docs/DEVELOPMENT-WORKFLOW.md` 為準。操作文件以繁體中文為主，必要英文術語附中文說明；程式識別字、指令、檔名及 CI 設定保留原文。產品需求以本規格為準；本節摘要不覆蓋上述規範。不得提供正式環境機密、信任 Prompt／文件／模型輸出／工具參數，或跳過及隱瞞失敗測試。
 
 ## 16. 待確認事項
 

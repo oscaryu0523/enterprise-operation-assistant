@@ -322,7 +322,7 @@ Local Agent installation, device pairing, and direct local-file operations are e
 | Phase | Deliverable |
 |---|---|
 | 0. Specification | Confirm scope, architecture, conventions, and acceptance criteria |
-| 1. Foundation | Repository structure, Spring Boot app, configuration, Docker Compose, CI |
+| 1. Foundation | Repository structure, Spring Boot app, configuration, reproducible Docker Compose local startup, required pull-request CI; no automatic deployment |
 | 2. Identity & Chat | Authentication, RBAC baseline, conversation and message APIs |
 | 3. AI Gateway | Provider interface, mock provider, local provider adapter |
 | 4. Agent Runtime | Prompt/context assembly, bounded orchestration, error handling |
@@ -340,6 +340,7 @@ Each phase must have a reviewable deliverable and passing tests before the next 
 
 ~~~text
 enterprise-operation-assistant/
+├── AGENTS.md
 ├── backend/
 │   └── (Spring Boot application)
 ├── frontend/
@@ -347,8 +348,12 @@ enterprise-operation-assistant/
 ├── local-agent/                  # Post-MVP; per-device local process
 │   └── (Java application)
 ├── docs/
+│   ├── DEVELOPMENT-WORKFLOW.md
 │   ├── PROJECT-SPEC.en.md
-│   └── PROJECT-SPEC.zh-TW.md
+│   ├── PROJECT-SPEC.zh-TW.md
+│   ├── agent-roles.md
+│   └── adr/                        # Architecture Decision Records
+├── evals/                          # Versioned datasets for model/agent behavior
 ├── infra/
 │   └── (Docker Compose and local infrastructure)
 ├── scripts/
@@ -360,22 +365,15 @@ enterprise-operation-assistant/
 
 This is a target structure, not a requirement to create every directory immediately.
 
-## 15. AI-Assisted Development Workflow
+## 15. Agent-Driven Development Workflow
 
-AI coding agents are development assistants, not autonomous project owners. Use this workflow for each implementation task:
+This section is a non-normative summary. The user owns product direction, priorities, one-time specification approval, and merge approval. Claude Code is the PM and Architect in one planning conversation and writes the task's root `SPEC.md`; Codex is the Engineer; Claude Code performs QA in a fresh, independent conversation. They hand off through the approved `SPEC.md`, PR diff, and test evidence.
 
-1. Ask the agent to inspect the current repository and relevant specifications.
-2. Ask it to clarify requirements, assumptions, edge cases, and acceptance criteria.
-3. Request a concise implementation plan and list of files to change.
-4. Review the plan before allowing code changes.
-5. Ask the agent to implement one bounded task at a time.
-6. Require tests and explanations of design decisions and changed files.
-7. Review the diff for correctness, security, unnecessary refactoring, and scope creep.
-8. Run tests and inspect logs locally.
-9. Commit only after changes and tests are reviewed.
-10. Update documentation when behavior or architecture changes.
+For non-trivial work, agree on the specification, scope, and plan before implementation. Use SDD, BDD, TDD, and risk-driven validation; define EDD before implementing model or agent behavior. Work on one short-lived branch at a time.
 
-Never provide production secrets to an AI agent. Do not allow an agent to bypass tests, access unrelated files, or perform irreversible actions without explicit approval.
+The workflow is: Claude Code PM/Architect creates the task's root `SPEC.md` in one planning conversation; the user approves it once before implementation. That approval covers Codex implementation and QA fix rounds within the approved scope; scope changes return to H1. Codex implements and validates. At H2, the user authorizes the initial commit, push, and PR; this authorization covers subsequent in-scope QA fixes on that PR. Claude Code QA uses a fresh conversation with only the approved `SPEC.md`, PR diff, test/CI evidence, and acceptance instructions. Each changed-line finding is an inline PR review comment with severity, evidence, impact, and a suggested fix; include a summary. After QA confirms a fix, reply `Resolved after re-review` to the corresponding thread and mark it resolved; add a summary of resolved and unresolved findings. Do not resolve before QA confirmation. H3 requires QA confirmation of fixes, no open Critical/Major findings except risks the user accepted and recorded in the PR, Minor findings fixed and re-reviewed or answered in the PR, and required CI/EDD results. The user explicitly approves merge after reviewing final QA/CI status and remaining risks. Until F01 provides CI, missing CI is recorded as a known limitation.
+
+F01 is Roadmap Phase 1 (Foundation): reproducible Docker Compose local startup and required PR CI. See `AGENTS.md` for normative execution and safety rules, `docs/agent-roles.md` for role boundaries and human gates, and `docs/DEVELOPMENT-WORKFLOW.md` for operational steps. These files are written primarily in Traditional Chinese, with key English technical terms explained in Chinese; code identifiers, commands, filenames, and CI settings retain their exact spelling. Product requirements are authoritative in this specification. Section 15 summarizes the workflow and does not override the agent rules. Never expose production secrets, treat prompts/documents/model outputs/tool arguments as untrusted, or skip/hide failed tests.
 
 ## 16. Open Decisions
 
