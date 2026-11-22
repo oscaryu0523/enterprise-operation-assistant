@@ -10,12 +10,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * BDD 驗收條件對應：SPEC.md F02 §3.1–3.8、3.10
- *
- * <p>測試策略：@SpringBootTest + MockMvc（Integration Test） 資料庫：Testcontainers
- * PostgreSQL（profile: test） Seed data：由 application-test.yml 或 @Sql 載入
- */
+// BDD 驗收條件對應：SPEC.md F02 §3.1–3.8、3.10
+// 測試策略：@SpringBootTest + MockMvc（Integration Test）
+// 資料庫：Testcontainers PostgreSQL（profile: test）
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

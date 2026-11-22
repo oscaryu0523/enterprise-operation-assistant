@@ -5,11 +5,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * BDD 驗收條件對應：SPEC.md F02 §3.4、3.6（JWT 產生與驗證）
- *
- * <p>測試策略：Unit Test，不需要 Spring Context JWT Secret：測試固定值（application-test.yml 設定）
- */
+// BDD 驗收條件對應：SPEC.md F02 §3.4、3.6（JWT 產生與驗證）
+// 測試策略：Unit Test，不需要 Spring Context
+// JWT Secret：測試固定值（application-test.yml 設定）
 class JwtServiceTest {
 
   // TODO: 建立 JwtService 實例（注入測試用 secret 與 expiration）

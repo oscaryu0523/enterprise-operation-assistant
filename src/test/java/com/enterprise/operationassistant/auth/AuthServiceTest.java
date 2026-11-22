@@ -9,11 +9,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * BDD 驗收條件對應：SPEC.md F02 §3.1–3.3、3.9（業務邏輯層）
- *
- * <p>測試策略：Unit Test，Mockito stub UserRepository 與 JwtService 不啟動 Spring Context，速度快
- */
+// BDD 驗收條件對應：SPEC.md F02 §3.1–3.3、3.9（業務邏輯層）
+// 測試策略：Unit Test，Mockito stub UserRepository 與 JwtService，不啟動 Spring Context
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
