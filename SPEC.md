@@ -1,11 +1,12 @@
-# SPEC.md — F01 專案骨架與 CI
+# SPEC.md — F02 身分驗證與 RBAC
 
-> **Feature ID：** F01  
+> **Feature ID：** F02  
 > **版本：** 0.1  
 > **狀態：** H1 已核准（2026-11-22）  
 > **作者：** Claude Code PM／架構師  
 > **建立日期：** 2026-11-22  
-> **產品規格來源：** [docs/PROJECT-SPEC.zh-TW.md](docs/PROJECT-SPEC.zh-TW.md)（v1.2）
+> **前置 Feature：** F01（已合併，Spring Boot 4.2.0 / Java 21 骨架就緒）  
+> **產品規格來源：** [docs/PROJECT-SPEC.zh-TW.md](docs/PROJECT-SPEC.zh-TW.md) §4.4 身分與存取控制
 
 ---
 
@@ -13,223 +14,302 @@
 
 ### 1.1 背景
 
-本 Feature 是 Enterprise Operation Assistant（EOA）的 **Foundation Phase**，目的是在後續所有功能模組開發前，建立穩固、可重現、CI 自動驗證的專案骨架。  
-沒有骨架，後續 F02–F07 無法在相同基準上並行開發、驗收與合併。
+F01 建立了可運行的骨架，但任何端點目前都沒有保護。F02 的目標是在 F03（RAG）與 F04（Agent）之前，讓每個 API 都知道「誰在呼叫、有沒有權限呼叫」。
+
+沒有身分基礎，後續模組無法做權限過濾（RAG 文件隔離）、工具控管（Agent 只能呼叫有授權的工具）及稽核紀錄（誰做了什麼操作）。
 
 ### 1.2 目標
 
-1. 本機 `docker compose up` 一鍵啟動應用程式，健康檢查回傳 200。
-2. GitHub Actions CI 在每個 PR 自動執行 Build、Unit Test、Lint，任一失敗阻止合併。
-3. `main` 設有 Branch Protection：必須通過 CI、必須經 PR，管理員亦不可略過。
-4. 新進開發者依 README 能在 30 分鐘內完成本機啟動並執行測試。
-5. 為後續 F02 身分驗證與 F03 RAG 預留模組邊界，但 F01 本身不實作業務邏輯。
+1. 使用者可以用帳號密碼登入，取得 JWT Access Token。
+2. 受保護端點驗證 Token，無效或缺少 Token 回傳 401。
+3. 角色（`ROLE_USER`、`ROLE_ADMIN`）控制端點存取，權限不足回傳 403。
+4. 每次登入與存取拒絕都寫入 Audit Log（DB 資料表）。
+5. 密碼使用 BCrypt 雜湊，不以明文儲存或記錄。
 
 ### 1.3 不在本次範圍
 
-- 任何業務功能（身分、RAG、Agent、工具整合）。
-- 正式環境部署或 CD Pipeline。
-- 多租戶或外部服務憑證。
+- OAuth2 / SSO / 第三方登入。
+- Refresh Token 機制（F02 只做 Access Token）。
+- 使用者自助註冊（帳號由管理員或 seed data 建立）。
+- 細緻的資源層級權限（Resource-level ABAC），留給後續 Feature。
+- 前端 UI。
 
 ---
 
 ## 2. 使用情境
 
-### 2.1 Persona
-
-| Persona | 需求 |
+| Persona | 情境 |
 |---|---|
-| 新進工程師 | clone repo → 看 README → `docker compose up` → 測試通過 |
-| Codex（Implementer） | 在 feature branch 實作後，PR CI 自動驗證，Claude Code QA 有明確驗收基準 |
-| Claude Code QA | 有可執行的測試命令，能獨立驗收 SPEC.md 與 PR Diff |
-| Human（Product Owner） | 能用 `git log` 與 CI 狀態確認 F01 完成，放心進入 F02 |
+| 一般員工（`ROLE_USER`）| 登入 → 取得 Token → 呼叫受保護 API |
+| 管理員（`ROLE_ADMIN`）| 登入 → 存取管理端點（`/api/admin/**`） |
+| 未登入者 | 呼叫受保護 API → 401 |
+| 一般員工存取管理端點 | → 403 |
 
 ---
 
 ## 3. BDD 驗收條件
 
-### 3.1 健康檢查
+### 3.1 登入成功
 
 ```
-Given  應用程式已透過 docker compose up 啟動
-When   HTTP GET /actuator/health
-Then   回傳 HTTP 200，body 包含 {"status": "UP"}
+Given  資料庫中有帳號 user@example.com，角色 ROLE_USER
+When   POST /api/auth/login  { "email": "user@example.com", "password": "correct" }
+Then   HTTP 200
+And    body 包含 access_token（非空字串）
+And    body 包含 expires_in（正整數，秒）
+And    body 包含 token_type: "Bearer"
+And    Audit Log 新增一筆 event: LOGIN_SUCCESS, user: user@example.com
 ```
 
-### 3.2 CI 阻止合併
+### 3.2 密碼錯誤
 
 ```
-Given  一個 PR 的 Unit Test 失敗
-When   CI 執行完畢
-Then   GitHub 顯示 required check 失敗，合併按鈕被停用
+Given  資料庫中有帳號 user@example.com
+When   POST /api/auth/login  { "email": "user@example.com", "password": "wrong" }
+Then   HTTP 401
+And    body 包含 error: "invalid_credentials"
+And    body 不得包含帳號是否存在的資訊（防帳號列舉）
+And    Audit Log 新增一筆 event: LOGIN_FAILED, user: user@example.com
 ```
 
-### 3.3 CI 允許合併
+### 3.3 帳號不存在
 
 ```
-Given  PR 的 Build、Unit Test、Lint 均通過
-When   CI 執行完畢
-Then   required checks 全部綠燈，可由人類合併
+Given  資料庫中沒有 unknown@example.com
+When   POST /api/auth/login  { "email": "unknown@example.com", "password": "any" }
+Then   HTTP 401
+And    body 與 3.2 相同錯誤訊息（不得洩漏帳號不存在）
+And    回應時間與帳號存在時的差異 < 50ms（防時序攻擊）
 ```
 
-### 3.4 本機測試
+### 3.4 有效 Token 存取受保護端點
 
 ```
-Given  開發者在本機執行 ./mvnw test（或等效命令）
-When   測試執行完畢
-Then   所有測試通過，無 Flaky test，退出碼為 0
+Given  使用者持有有效 JWT Token（ROLE_USER）
+When   GET /api/conversations  Authorization: Bearer <token>
+Then   HTTP 200（或 204 若無資料）
+And    不得回傳其他使用者的資料
 ```
 
-### 3.5 Branch Protection
+### 3.5 無 Token 存取受保護端點
 
 ```
-Given  有人試圖直接 push 到 main
-When   push 命令發出
-Then   GitHub 拒絕，要求透過 PR
+Given  請求未帶 Authorization header
+When   GET /api/conversations
+Then   HTTP 401
+And    body 包含 error: "unauthorized"
 ```
 
-### 3.6 環境變數安全
+### 3.6 Token 過期
 
 ```
-Given  專案原始碼被 clone
-When   搜尋任何真實憑證或 API Key
-Then   找不到；僅有佔位值（如 PLACEHOLDER）或範例值
+Given  使用者持有已過期的 JWT Token
+When   GET /api/conversations  Authorization: Bearer <expired_token>
+Then   HTTP 401
+And    body 包含 error: "token_expired"
+```
+
+### 3.7 ROLE_USER 存取管理端點
+
+```
+Given  使用者持有有效 JWT Token（ROLE_USER）
+When   GET /api/admin/users  Authorization: Bearer <token>
+Then   HTTP 403
+And    body 包含 error: "forbidden"
+And    Audit Log 新增一筆 event: ACCESS_DENIED
+```
+
+### 3.8 ROLE_ADMIN 存取管理端點
+
+```
+Given  使用者持有有效 JWT Token（ROLE_ADMIN）
+When   GET /api/admin/users  Authorization: Bearer <token>
+Then   HTTP 200
+```
+
+### 3.9 密碼不以明文儲存
+
+```
+Given  管理員透過 seed data 建立帳號
+When   查詢資料庫 users 資料表的 password_hash 欄位
+Then   值以 "$2a$" 開頭（BCrypt 格式）
+And    原始密碼無法從 password_hash 直接還原
+```
+
+### 3.10 健康檢查不需要驗證
+
+```
+Given  任何請求（無 Token）
+When   GET /actuator/health
+Then   HTTP 200（白名單端點，不受 Spring Security 保護）
 ```
 
 ---
 
 ## 4. 技術架構與選型
 
-### 4.1 技術基準
+### 4.1 新增依賴（需加入 pom.xml）
 
-| 元件 | 版本 | 說明 |
+| 依賴 | 用途 | 版本策略 |
 |---|---|---|
-| Java | 21 LTS | 官方支援版本 |
-| Spring Boot | 4.x（最新穩定） | 實作前以官方文件核對確切版本 |
-| Maven Wrapper | `mvnw` 內建 | 不依賴本機 Maven 安裝 |
-| Docker / Docker Compose | 最新穩定 | 容器化本機啟動 |
-| PostgreSQL | 16 | F01 僅建立連線設定，不建 Schema |
-| GitHub Actions | `ubuntu-latest`，固定 SHA | 見 CI 設計 |
+| `spring-boot-starter-security` | Spring Security 核心 | 由 Spring Boot 4.2.0 BOM 管理 |
+| `spring-boot-starter-data-jpa` | JPA / Hibernate | 由 BOM 管理 |
+| `jjwt-api` / `jjwt-impl` / `jjwt-jackson` | JWT 產生與驗證 | 實作前確認與 Spring Boot 4.2.0 相容的穩定版本 |
+| `flyway-core` | DB Migration | 由 BOM 管理 |
+| `spring-security-test` | 測試用 | 由 BOM 管理 |
+| `testcontainers` / `testcontainers-postgresql` | 整合測試用真實 DB | 實作前確認版本 |
 
-### 4.2 目錄結構（預期）
+### 4.2 資料模型
+
+```sql
+-- Migration: V1__create_users_and_audit_log.sql
+CREATE TABLE users (
+    id          BIGSERIAL PRIMARY KEY,
+    email       VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role        VARCHAR(50)  NOT NULL DEFAULT 'ROLE_USER',
+    enabled     BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE audit_log (
+    id          BIGSERIAL PRIMARY KEY,
+    event       VARCHAR(100) NOT NULL,  -- LOGIN_SUCCESS, LOGIN_FAILED, ACCESS_DENIED
+    user_email  VARCHAR(255),
+    ip_address  VARCHAR(45),
+    details     TEXT,
+    occurred_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+```
+
+### 4.3 API 設計
+
+| Method | Path | 保護 | 說明 |
+|---|---|---|---|
+| POST | `/api/auth/login` | 公開 | 登入，回傳 JWT |
+| GET | `/api/admin/users` | `ROLE_ADMIN` | 管理用（F02 只做骨架，回傳空陣列即可） |
+| GET | `/api/conversations` | `ROLE_USER` | 對話列表（F03 實作內容，F02 只驗證授權） |
+| GET | `/actuator/health` | 公開（白名單） | F01 既有端點 |
+
+### 4.4 JWT 設定
+
+- 演算法：HS256（MVP 階段，Production 建議改 RS256）
+- 有效期：1 小時（可透過 `application.yml` 設定）
+- Payload：`sub`（email）、`role`、`iat`、`exp`
+- Secret：從環境變數 `JWT_SECRET` 讀取，不寫死在程式碼，測試用 `application-test.yml` 設定固定值
+
+### 4.5 目錄結構（新增部分）
 
 ```
-enterprise-operation-assistant/
-├── AGENTS.md
-├── SPEC.md                      ← 本文件
-├── README.md
-├── docker-compose.yml
-├── .github/
-│   ├── workflows/
-│   │   └── ci.yml
-│   └── PULL_REQUEST_TEMPLATE.md
-├── src/
-│   ├── main/java/...
-│   │   └── EoaApplication.java
-│   └── test/java/...
-│       └── EoaApplicationTests.java
-└── docs/
-    ├── PROJECT-SPEC.zh-TW.md
-    ├── agent-roles.md
-    └── DEVELOPMENT-WORKFLOW.md
+src/
+├── main/java/com/enterprise/operationassistant/
+│   ├── auth/
+│   │   ├── AuthController.java
+│   │   ├── AuthService.java
+│   │   ├── JwtService.java
+│   │   └── dto/
+│   │       ├── LoginRequest.java
+│   │       └── LoginResponse.java
+│   ├── security/
+│   │   ├── SecurityConfig.java
+│   │   ├── JwtAuthFilter.java
+│   │   └── UserDetailsServiceImpl.java
+│   ├── user/
+│   │   ├── User.java           (JPA Entity)
+│   │   └── UserRepository.java
+│   └── audit/
+│       ├── AuditLog.java       (JPA Entity)
+│       ├── AuditLogRepository.java
+│       └── AuditService.java
+├── main/resources/
+│   ├── application.yml         (新增 JWT / Security 設定)
+│   └── db/migration/
+│       └── V1__create_users_and_audit_log.sql
+└── test/java/com/enterprise/operationassistant/
+    ├── auth/
+    │   ├── AuthControllerTest.java   ← 測試骨架已建立
+    │   └── AuthServiceTest.java      ← 測試骨架已建立
+    └── security/
+        └── JwtServiceTest.java       ← 測試骨架已建立
 ```
-
-### 4.3 CI 設計
-
-- Trigger：`pull_request`（禁止用 `pull_request_target`）
-- Permissions：`contents: read`（最小權限）
-- 不使用 Repository Secrets（F01 不需要外部服務）
-- 所有 `uses:` Action 固定完整 Commit SHA，不使用浮動 Tag
-- Required checks（Branch Protection 設定）：`build-and-test`
-- 步驟：Checkout → Setup Java 21 → Cache Maven → `mvnw verify`
-
-### 4.4 Branch Protection 設定
-
-- 保護分支：`main`
-- 要求 PR：是
-- Required status checks：`build-and-test`（CI Job 名稱）
-- 管理員也必須遵守：是
-- 允許 Force Push：否
 
 ---
 
-## 5. API 與資料模型
+## 5. 錯誤行為
 
-F01 無業務 API。僅暴露：
-
-| Endpoint | 方法 | 說明 |
+| 情境 | HTTP | body error 欄位 |
 |---|---|---|
-| `/actuator/health` | GET | Spring Boot Actuator 健康檢查 |
+| 無 Token | 401 | `unauthorized` |
+| Token 格式錯誤 | 401 | `invalid_token` |
+| Token 過期 | 401 | `token_expired` |
+| 密碼錯誤 / 帳號不存在 | 401 | `invalid_credentials` |
+| 權限不足 | 403 | `forbidden` |
+| 請求 body 格式錯誤 | 400 | `bad_request` |
 
-資料庫：F01 建立 Docker Compose PostgreSQL 服務及連線設定，不執行 Migration；Migration 策略（Flyway）留給 F02。
+所有錯誤回應格式統一：
+```json
+{ "error": "<code>", "message": "<human-readable>" }
+```
 
 ---
 
-## 6. 錯誤行為
+## 6. 安全要求
 
-| 情境 | 預期行為 |
+- 密碼一律 BCrypt（`BCryptPasswordEncoder`，cost factor ≥ 10）。
+- JWT Secret 長度 ≥ 256 bit，不得硬編碼，不得出現在 Log。
+- 登入失敗與成功的回應時間應一致（防時序攻擊）。
+- Audit Log 記錄 IP，但不記錄密碼或 Token 明文。
+- `/actuator/**` 除 `/actuator/health` 外，全部需要 `ROLE_ADMIN`。
+
+---
+
+## 7. 非功能需求
+
+| 指標 | 目標 |
 |---|---|
-| PostgreSQL 未啟動 | 應用程式啟動失敗，日誌輸出明確錯誤訊息 |
-| 測試中有任一失敗 | `mvnw test` 退出碼非 0，CI Job 標記失敗 |
-| Lint 格式問題 | CI 失敗並回報違反規則的檔案與行號 |
+| 登入 API P95 延遲 | ≤ 500ms（本機 Docker Compose） |
+| CI 執行時間 | ≤ 8 分鐘（含 Testcontainers 整合測試） |
+| 測試覆蓋率（auth / security 套件） | ≥ 80%（行覆蓋率） |
 
 ---
 
-## 7. 安全與品質要求
+## 8. 完成定義（DoD）
 
-- **Secrets**：不得提交任何正式環境金鑰；Docker Compose 使用 `PLACEHOLDER` 佔位值。
-- **Lint**：統一程式碼格式（Checkstyle 或 Spotless，實作前確認工具版本）。
-- **Dependency Scan**：F01 CI 加入 OWASP Dependency Check 或等效工具（若執行時間可接受），否則作為 Known Limitation 記錄，於 F02 補上。
-- **測試穩定性**：不允許 Flaky test 進 main。
-
----
-
-## 8. 非功能需求
-
-| 指標 | 目標 | 說明 |
-|---|---|---|
-| CI 執行時間 | ≤ 5 分鐘 | F01 無複雜整合測試 |
-| 本機啟動時間 | ≤ 2 分鐘（docker compose up） | 含 PostgreSQL 啟動 |
-| README 可重現性 | 陌生人 30 分鐘內完成本機啟動 | H1 驗收基準之一 |
+- [ ] `V1__create_users_and_audit_log.sql` Migration 執行成功
+- [ ] Seed data：至少一個 `ROLE_USER`、一個 `ROLE_ADMIN` 帳號（BCrypt 雜湊）
+- [ ] BDD 3.1–3.10 每條都有對應自動化測試且通過
+- [ ] `./mvnw test` 本機全部通過（含 Testcontainers）
+- [ ] `./mvnw spotless:check` 通過
+- [ ] GitHub Actions CI 綠燈
+- [ ] 資料庫 `password_hash` 欄位無明文密碼
+- [ ] `JWT_SECRET` 未出現在任何提交的程式碼或 Log
+- [ ] Audit Log 在登入成功、失敗、存取拒絕時均寫入
+- [ ] Claude Code QA（全新對話）逐條驗收，無 Critical／Major
+- [ ] 人類 H3 核准合併
 
 ---
 
-## 9. 完成定義（DoD）
-
-下列全部達成，F01 才算完成：
-
-- [ ] `docker compose up` 後 `/actuator/health` 回傳 HTTP 200
-- [ ] `./mvnw test` 本機執行通過
-- [ ] GitHub Actions CI `build-and-test` Job 在 PR 自動觸發並通過
-- [ ] `main` Branch Protection 已設定，direct push 被拒絕，CI 為 required check
-- [ ] PR Template 存在（`.github/PULL_REQUEST_TEMPLATE.md`）
-- [ ] README 包含：環境需求、啟動步驟、測試命令、目錄說明
-- [ ] 無任何正式環境憑證提交至版控
-- [ ] SPEC.md、AGENTS.md、docs/ 文件與實作一致
-- [ ] Claude Code QA 在全新對話逐條驗收，無 Critical／Major 未處理項目
-- [ ] 人類（H3）明確核准合併
-
----
-
-## 10. 已知限制與假設
+## 9. 已知限制
 
 | 項目 | 說明 |
 |---|---|
-| Dependency Scan | F01 若 CI 時間不足，Dependency Check 列為 Known Limitation，F02 補上 |
-| PostgreSQL Schema | F01 只建連線，Schema Migration（Flyway）於 F02 實作 |
-| 業務邏輯 | F01 完全沒有；健康檢查是唯一端點 |
-| Spring Boot 版本 | 草稿使用「最新穩定 4.x」，Codex 實作前以官方 release notes 核對確切版本與相容性 |
+| Refresh Token | F02 不實作，Access Token 1 小時後需重新登入 |
+| 細緻資源權限 | F02 只做角色層級，Resource-level 留後續 Feature |
+| `/api/conversations` | F02 只驗授權，回傳空陣列，F03 實作內容 |
+| `/api/admin/users` | F02 只驗授權，回傳空陣列，管理功能留後續 |
+| Testcontainers 冷啟動 | CI 首次執行下載 image 較慢，後續有 layer cache |
 
 ---
 
-## 11. 已確認決策
+## 10. 已確認決策
 
-| 決策項目 | 選擇 | 理由 |
+| 決策 | 選擇 | 理由 |
 |---|---|---|
-| Lint 工具 | **Spotless** | 支援 `spotless:apply` 自動修正；CI 用 `spotless:check`；Agent 開發流程中格式一致性更易維護 |
-| Dependency Scan | **F01 列為 Known Limitation，F02 補上** | OWASP Dependency Check 冷啟動需下載 ~300MB 資料庫，超過 CI ≤5 分鐘目標；F02 引入 Spring Security 後一起設定更有意義 |
-| Human Reviewer | **要求 1 位人類核准（`required_approving_review_count: 1`）** | 防止 Agent 自行合併，符合 H3 關卡精神；你本人即可核准 |
+| JWT 演算法 | HS256 | MVP 夠用；Production 升 RS256 時只改 `JwtService` |
+| Token 有效期 | 1 小時，可設定 | 平衡安全與體驗；Refresh Token 後續再加 |
+| 整合測試 DB | Testcontainers PostgreSQL | 與 Production 環境一致，避免 H2 假陽性 |
+| Migration 工具 | Flyway | Spring Boot 官方整合，版本化 SQL |
 
 ---
 
-*本 SPEC.md 為 F01 規格，已通過人類 H1 核准（2026-11-22）。*  
-*Codex 可依此規格開始實作。需求或驗收範圍變更時，請回到本文件修訂並重新核准。*
+*本 SPEC.md 為 F02 規格，已通過人類 H1 核准（2026-11-22）。Codex 可依此規格開始實作。需求或驗收範圍變更時，請回到本文件修訂並重新核准。*

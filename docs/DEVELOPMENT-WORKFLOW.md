@@ -26,6 +26,8 @@ Agent 是開發執行者，不是產品方向的最終決策者。不得把未�
 
 EDD 只在功能包含模型或 Agent 行為時設為必要關卡；文件或基礎設施變更不需要虛構模型評估。
 
+各方法論的具體寫法、BDD 情境格式、TDD 循環步驟與測試命名規範，詳見 [`docs/SDD-BDD-TDD-GUIDE.md`](SDD-BDD-TDD-GUIDE.md)。
+
 Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 EDD 資料集與可量測門檻，避免測試結果因樣本變動而失去可比較性。
 
 本專案的 `AGENTS.md`、`docs/agent-roles.md` 與本指南以繁體中文撰寫，必要英文術語首次出現時附中文解釋；程式識別字、指令、檔名及 CI 設定維持原文。`PROJECT-SPEC.en.md` 與 `PROJECT-SPEC.zh-TW.md` 是分開維護的中英文產品規格。規範優先順序見 `AGENTS.md`；產品需求以產品規格為準，本規格第 15 節只提供非規範性摘要。
