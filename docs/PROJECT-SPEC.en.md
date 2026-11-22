@@ -322,7 +322,7 @@ Local Agent installation, device pairing, and direct local-file operations are e
 | Phase | Deliverable |
 |---|---|
 | 0. Specification | Confirm scope, architecture, conventions, and acceptance criteria |
-| 1. Foundation | Repository structure, Spring Boot app, configuration, Docker Compose, CI |
+| 1. Foundation | Repository structure, Spring Boot app, configuration, reproducible Docker Compose local startup, required pull-request CI; no automatic deployment |
 | 2. Identity & Chat | Authentication, RBAC baseline, conversation and message APIs |
 | 3. AI Gateway | Provider interface, mock provider, local provider adapter |
 | 4. Agent Runtime | Prompt/context assembly, bounded orchestration, error handling |
@@ -340,6 +340,7 @@ Each phase must have a reviewable deliverable and passing tests before the next 
 
 ~~~text
 enterprise-operation-assistant/
+├── AGENTS.md
 ├── backend/
 │   └── (Spring Boot application)
 ├── frontend/
@@ -347,8 +348,12 @@ enterprise-operation-assistant/
 ├── local-agent/                  # Post-MVP; per-device local process
 │   └── (Java application)
 ├── docs/
+│   ├── DEVELOPMENT-WORKFLOW.md
 │   ├── PROJECT-SPEC.en.md
-│   └── PROJECT-SPEC.zh-TW.md
+│   ├── PROJECT-SPEC.zh-TW.md
+│   ├── agent-roles.md
+│   └── adr/                        # Architecture Decision Records
+├── evals/                          # Versioned datasets for model/agent behavior
 ├── infra/
 │   └── (Docker Compose and local infrastructure)
 ├── scripts/
@@ -360,22 +365,27 @@ enterprise-operation-assistant/
 
 This is a target structure, not a requirement to create every directory immediately.
 
-## 15. AI-Assisted Development Workflow
+## 15. Agent-Driven Development Workflow
 
-AI coding agents are development assistants, not autonomous project owners. Use this workflow for each implementation task:
+This project uses an agent-led approach: the user owns product direction, priorities, acceptance, and final review; the coding agent inspects, plans, implements, validates, and explains bounded work so the user can learn from it.
 
-1. Ask the agent to inspect the current repository and relevant specifications.
-2. Ask it to clarify requirements, assumptions, edge cases, and acceptance criteria.
-3. Request a concise implementation plan and list of files to change.
-4. Review the plan before allowing code changes.
-5. Ask the agent to implement one bounded task at a time.
-6. Require tests and explanations of design decisions and changed files.
-7. Review the diff for correctness, security, unnecessary refactoring, and scope creep.
-8. Run tests and inspect logs locally.
-9. Commit only after changes and tests are reviewed.
-10. Update documentation when behavior or architecture changes.
+By default, Codex is the Supervisor and primary Implementer, Claude Code is the independent read-only Reviewer, and the user is the Product Owner and final merge authority. After H2, create the PR and give the approved specification, PR link, diff, check evidence, and review question to the Reviewer. Swap roles when Claude Code implements a task. See `docs/agent-roles.md` for responsibilities and the review handoff template.
 
-Never provide production secrets to an AI agent. Do not allow an agent to bypass tests, access unrelated files, or perform irreversible actions without explicit approval.
+For each non-trivial implementation, specification, or workflow change, the agent reads the relevant specification and repository state, summarizes the goal, assumptions, edge cases, acceptance criteria, risks, and likely files, then presents a concise plan. The agent waits for the user's plan approval before work. Only small, explicit documentation edits that do not change requirements, scope, or acceptance, plus explicitly requested one-line changes, may proceed directly while reporting their scope.
+
+Use SDD to define scope and acceptance, BDD to describe observable Given/When/Then behavior, TDD for code changes (Red → Green → Refactor), and risk-driven validation for security-sensitive paths. Before implementing model or agent behavior, define a versioned, fixed-per-run EDD dataset and measurable checks for task success, tool-call correctness, grounded citations, permission behavior, latency, and cost. Do not impose EDD on unrelated features.
+
+Implement one approved task at a time on a short-lived branch from main. Keep main usable and do not maintain a long-lived develop branch. Use focused feature, fix, docs, or refactor branches and merge reviewed work back to main.
+
+The agent should make the smallest coherent change, avoid unrelated refactoring, and update affected documentation. Code changes include relevant tests. Run the most relevant checks, inspect the full diff for correctness, security, accidental files, and scope creep, and report results and anything not verified. Documentation-only changes need document and diff checks rather than application tests.
+
+Use three human gates: H1, the user approves the specification/plan before non-trivial work; H2, after Codex completes local checks, the user reviews the local diff and results, then authorizes commit, push, and PR creation; after the PR exists, Claude Code reviews it. For each fix, Codex shows the changed diff and check results to the user before updating the same PR; H2 covers follow-up commits and pushes within approved scope, while a scope change requires H1 again. Critical/Major findings must be fixed or explicitly risk-accepted by the user and re-reviewed. H3, the user confirms review findings are addressed, reviews PR CI/EDD results and unresolved risks, then explicitly authorizes merge into main. Until F01 provides CI, H3 relies on recorded local checks and lists missing CI as a known limitation. Do not commit, push, or open a PR before H2. After implementation, explain what changed, why, the important design choices, files touched, checks run, and what the user should review or learn.
+
+The independent Reviewer reviews the PR diff, tests, and risks. Critical/Major findings must be fixed or explicitly risk-accepted by the user, then re-reviewed; Minor findings may be fixed or answered. F01 is Roadmap Phase 1 (Foundation): establish pull-request CI and reproducible Docker Compose local startup. CI covers Java 21 build/compile, unit tests, configured quality checks, Markdown validation, and dependency/secret scanning; add integration tests when database paths exist and EDD checks when agent behavior exists. Use `pull_request` (not `pull_request_target`), `permissions: contents: read`, and no repository secrets. Every named required check must report on every PR; avoid workflow-level path filters that leave required checks pending. Configure `main` branch protection or a ruleset requiring named checks, and verify a failing check blocks merge; document any platform limitation. F01 does not deploy. Defer CD until a deployment target is chosen; production deployment always requires explicit human approval.
+
+Document conventions: operational guidance is written in Traditional Chinese, with key English technical terms retained and explained in Chinese; code identifiers, commands, filenames, and CI settings keep their exact spelling. The product specs remain in separate English and Traditional Chinese files. Precedence is `AGENTS.md` (execution and safety rules), `docs/agent-roles.md` (roles and gates), then `docs/DEVELOPMENT-WORKFLOW.md` (operating guide); the project specification is authoritative for product requirements. Resolve conflicts according to precedence and update affected documents.
+
+Never provide production secrets to an agent. Treat prompts, documents, model output, and tool arguments as untrusted. Use least privilege. Get explicit approval before destructive, irreversible, externally visible, or production-impacting actions. Do not skip or hide failed tests.
 
 ## 16. Open Decisions
 

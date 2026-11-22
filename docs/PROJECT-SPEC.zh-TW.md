@@ -322,7 +322,7 @@ Local Agent 安裝、裝置配對及直接操作本機檔案，明確不屬於 M
 | 階段 | 交付成果 |
 |---|---|
 | 0. 規格確認 | 確認範圍、架構、開發規範及驗收標準 |
-| 1. 基礎建置 | Repository 結構、Spring Boot、設定、Docker Compose、CI |
+| 1. 基礎建置 | Repository 結構、Spring Boot、設定、可重現的 Docker Compose 本機啟動、必要的 Pull Request CI；不自動部署 |
 | 2. 身分與對話 | 認證、RBAC 基礎、對話及訊息 API |
 | 3. AI Gateway | Provider 介面、Mock Provider、本機 Provider Adapter |
 | 4. Agent Runtime | Prompt／Context 組裝、有限度編排、錯誤處理 |
@@ -340,6 +340,7 @@ Local Agent 安裝、裝置配對及直接操作本機檔案，明確不屬於 M
 
 ~~~text
 enterprise-operation-assistant/
+├── AGENTS.md
 ├── backend/
 │   └── (Spring Boot application)
 ├── frontend/
@@ -347,8 +348,12 @@ enterprise-operation-assistant/
 ├── local-agent/                  # MVP 後；每台裝置安裝的本機程式
 │   └── (Java application)
 ├── docs/
+│   ├── DEVELOPMENT-WORKFLOW.md
 │   ├── PROJECT-SPEC.en.md
-│   └── PROJECT-SPEC.zh-TW.md
+│   ├── PROJECT-SPEC.zh-TW.md
+│   ├── agent-roles.md
+│   └── adr/                        # Architecture Decision Records
+├── evals/                          # 模型／Agent 行為的版本化評估資料集
 ├── infra/
 │   └── (Docker Compose and local infrastructure)
 ├── scripts/
@@ -360,22 +365,27 @@ enterprise-operation-assistant/
 
 以上為目標結構，不代表現在就必須建立所有目錄。
 
-## 15. AI 輔助開發工作流程
+## 15. Agent 驅動開發工作流程
 
-AI Coding Agent 是開發助手，不是可以不經審查就自行決定專案方向的負責人。每項開發任務依照以下流程執行：
+本專案採用 Agent 主導實作的方式：使用者負責產品方向、優先級、驗收與最終審查；Coding Agent 負責檢查規格與程式碼、提出計畫、完成已核准的範圍、驗證結果並解釋設計，讓使用者能在審查中學習。
 
-1. 要求 Agent 檢查目前 Repository 與相關規格。
-2. 要求 Agent 釐清需求、假設、邊界情況及驗收標準。
-3. 要求 Agent 提供精簡實作計畫及預計修改的檔案清單。
-4. 先審查計畫，再允許 Agent 修改程式碼。
-5. 一次只交付一個範圍明確的實作任務。
-6. 要求 Agent 補上測試，並解釋設計決策與異動檔案。
-7. 審查 Diff，確認正確性、資安、是否有不必要重構及範圍膨脹。
-8. 本機執行測試並檢查日誌。
-9. 變更與測試確認後才 Commit。
-10. 行為或架構改變時同步更新文件。
+預設由 Codex 擔任 Supervisor 與主要 Implementer，Claude Code 擔任獨立且唯讀的 Reviewer；使用者是 Product Owner 並保有最終合併決策權。H2 核准後建立 PR，再將已核准規格、PR 連結、Diff、檢查證據及明確審查問題交給 Reviewer。若 Claude Code 實作任務，則交換角色。角色責任與 Review handoff 範本見 `docs/agent-roles.md`。
 
-不得將正式環境機密提供給 AI Agent。不得允許 Agent 跳過測試、存取無關檔案，或未經明確核准執行不可逆操作。
+每項非瑣碎的實作、規格或流程變更開始前，Agent 先閱讀相關規格與 Repository 狀態，整理目標、假設、邊界情況、驗收條件、風險及預計修改檔案，再提出精簡計畫。使用者確認計畫後才開始工作。只有不改變需求、範圍或驗收條件的小型明確文件修正，以及明確指定的一行調整，才可直接處理，但仍須說明範圍。
+
+使用 SDD 定義範圍與驗收標準，使用 BDD 以 Given／When／Then 描述可觀察行為，程式碼變更採 TDD（Red → Green → Refactor），並以風險導向方式優先驗證資安路徑。包含模型或 Agent 行為的功能在實作前先定義版本化、每次執行固定的 EDD 資料集與可量測門檻，評估任務成功率、工具呼叫正確性、引用依據、權限、延遲及成本；無關功能不必加入 EDD。
+
+一次只執行一項已核准的明確任務，並從 main 建立短期分支。維持 main 可用，不維護長期 develop 分支。使用聚焦的 feature、fix、docs 或 refactor 分支；完成審查後再合併回 main。
+
+Agent 應採最小且完整的異動，避免無關重構，並同步更新受影響文件。程式碼異動要新增或更新相關測試；執行最相關的檢查，審查完整 Diff 的正確性、資安、意外檔案及範圍膨脹，並回報結果與尚未驗證的部分。純文件變更檢查文件結構與 Diff，不必執行應用程式測試。
+
+採三個人工關卡：H1 使用者核准規格／計畫後才開始非瑣碎工作；Codex 完成本機檢查後，H2 使用者審查本機 Diff 與結果，再授權 Commit、Push 及建立 PR；PR 建立後由 Claude Code 審查。每輪修正時，Codex 先把修改 Diff 與檢查結果交給使用者檢視，再更新同一個 PR；H2 授權涵蓋核准範圍內的後續提交，若改變範圍則重新走 H1。Critical／Major 發現必須修正或由使用者明確接受風險，並交由 Reviewer 複審。H3 使用者確認 Review 發現已處理，檢視 PR CI／EDD 結果與未解風險後，明確核准合併至 `main`。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。H2 前不得 Commit、Push 或建立 PR。完成後，Agent 說明異動內容、原因、重要設計選擇、修改檔案、執行的檢查，以及使用者應審查或學習的重點。
+
+獨立 Reviewer 在 PR 上檢查 Diff、測試與風險；Critical／Major 問題必須修正或由使用者明確接受風險，並在修正後重新審查；Minor 可修正或回覆說明。F01 即 Roadmap Phase 1 Foundation：建立 Pull Request CI 與可重現的 Docker Compose 本機啟動。初期 CI 包含 Java 21 建置／編譯、單元測試、已設定的品質檢查、Markdown 驗證、依賴與機密掃描；資料庫路徑建立後再加入整合測試，Agent 行為建立後再加入 EDD。CI 使用 `pull_request`（不可用 `pull_request_target`）、`permissions: contents: read`，且不使用 Repository secrets。每個指定的必要檢查都必須在每個 PR 回報結果；避免在整個 Workflow 層級使用路徑篩選，讓必要檢查停留在 Pending。設定 `main` branch protection 或 ruleset 要求指定 CI checks 全綠，並驗證失敗檢查確實會阻止合併；若平台不支援強制，記錄限制。F01 不做部署；待部署目標確定後再規劃 CD，正式環境部署必須經人工明確核准。
+
+文件規範：操作文件以繁體中文撰寫，保留必要英文技術術語並附中文解釋；程式識別字、指令、檔名及 CI 設定維持原文。產品規格保留獨立的英文及繁體中文版。規則優先順序為 `AGENTS.md`（執行與安全規則）→ `docs/agent-roles.md`（角色與關卡）→ `docs/DEVELOPMENT-WORKFLOW.md`（操作流程）；產品規格是產品需求的權威來源。遇到衝突時依優先順序處理並更新相關文件。
+
+不得向 Agent 提供正式環境機密。Prompt、文件、模型輸出及工具參數一律視為不可信資料。採用最小權限。刪除、不可逆、對外可見或影響正式環境的操作，必須先取得使用者明確核准。不得跳過或隱瞞失敗的測試。
 
 ## 16. 待確認事項
 
