@@ -371,7 +371,7 @@ enterprise-operation-assistant/
 
 非瑣碎任務先核准規格與計畫，再開始實作。採用 SDD、BDD、TDD 與風險導向驗證；模型或 Agent 行為另須在實作前定義 EDD。每次只在一個短期分支處理一項已核准任務。
 
-流程為：Implementer 完成本機實作與檢查；H2 使用者審查本機 Diff、檢查結果、設計理由、檔案清單及風險，明確核准後才 Commit、Push、建立 PR；Reviewer 再審查 PR。每項能對應到變更行的發現，必須以 PR 逐行 Review comment 錨定至相關行，說明問題、證據、影響及建議修正；多行問題僅標註最小必要行範圍。只有無法合理錨定 Diff 行時才用一般 PR comment，並說明原因；另提供 Review summary。每輪修正都要將新 Diff、檢查結果、理由、受影響檔案及風險提供使用者，等使用者明確同意後才能 Commit／Push 更新 PR；改變範圍則重新走 H1。H3 前須由 Reviewer 複審修正，沒有未處理的 Critical／Major（除非使用者已接受並記錄風險），Minor 已修正並複審或已回覆記錄，並提供必要 CI／EDD 結果。使用者檢視最終 Review／CI 狀態及剩餘風險後明確核准合併。F01 CI 建立前，將缺少 CI 列為已知限制。
+流程為：Implementer 完成本機實作與檢查；H2 使用者審查本機 Diff、檢查結果、設計理由、檔案清單及風險，明確核准後才 Commit、Push、建立 PR；Reviewer 再審查 PR。每項能對應到變更行的發現，必須以 PR 逐行 Review comment 錨定至相關行，說明問題、證據、影響及建議修正；多行問題僅標註最小必要行範圍。只有無法合理錨定 Diff 行時才用一般 PR comment，並說明原因；另提供 Review summary。每輪修正都要將新 Diff、檢查結果、理由、受影響檔案及風險提供使用者，等使用者明確同意後才能 Commit／Push 更新 PR；改變範圍則重新走 H1。Reviewer 複審確認修正後，逐項回覆原 inline thread `Resolved after re-review` 並標記 Resolved，再在 PR 留言列出已解決及未解決項目；未確認前不得標記 Resolved。H3 前須由 Reviewer 複審修正、確認的 inline thread 已標記 Resolved，沒有未處理的 Critical／Major（除非使用者已接受並記錄風險），Minor 已修正並複審或已回覆記錄，並提供必要 CI／EDD 結果。使用者檢視最終 Review／CI 狀態及剩餘風險後明確核准合併。F01 CI 建立前，將缺少 CI 列為已知限制。
 
 F01 是 Roadmap Phase 1 Foundation：建立可重現的 Docker Compose 本機啟動及必要 PR CI。Agent 執行與安全規則以 `AGENTS.md` 為準；角色及人工關卡以 `docs/agent-roles.md` 為準；操作細節以 `docs/DEVELOPMENT-WORKFLOW.md` 為準。操作文件以繁體中文為主，必要英文術語附中文說明；程式識別字、指令、檔名及 CI 設定保留原文。產品需求以本規格為準；本節摘要不覆蓋上述規範。不得提供正式環境機密、信任 Prompt／文件／模型輸出／工具參數，或跳過及隱瞞失敗測試。
 

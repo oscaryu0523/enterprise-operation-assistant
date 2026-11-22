@@ -68,7 +68,7 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 - 測試未通過時，修正後重跑；若受環境或外部服務限制，明確標示未驗證部分。
 - 本機檢查完成後，實作者先把 Diff、檢查結果、設計理由、檔案清單與風險交給使用者審查。使用者核准 H2 後才 Commit、Push 並建立 PR。
 - PR 建立後才交給獨立 Reviewer 唯讀審查，提供規格、PR 連結、Diff、檢查結果及明確問題；要求 Critical／Major／Minor 分級、證據、影響與建議修正。每個能對應到變更行的發現，都必須在 PR 建立錨定相關行的逐行 Review comment；多行問題使用最小必要行範圍。每則 comment 說明問題、可能後果及建議修正；只有無法合理錨定到 Diff 行的發現才用一般 PR comment，並說明原因。另以 review summary 彙整結論。每輪複審也要按行錨定並記錄在 PR。預設 Reviewer 是 Claude Code；若 Claude Code CLI 無 GitHub 寫入權限，由 Supervisor 透明代貼原始發現並標明 Reviewer 與代貼者，不可冒稱 Claude Code 帳號發文。
-- 若有發現，實作者修正並執行相關檢查，再把本輪 Diff、檢查結果、設計理由、受影響檔案及風險提供使用者；**等待使用者明確同意後**才 Commit／Push 更新同一個 PR，然後請 Reviewer 複審並將結果記錄在 PR。每輪都要明確取得使用者同意；若改變範圍，重新走 H1。Critical／Major 必須修正或由使用者明確接受並記錄風險；Minor 須修正並複審，或在 PR 回覆／記錄。
+- 若有發現，實作者修正並執行相關檢查，再把本輪 Diff、檢查結果、設計理由、受影響檔案及風險提供使用者；**等待使用者明確同意後**才 Commit／Push 更新同一個 PR，然後請 Reviewer 複審並將結果記錄在 PR。Reviewer 確認已修正後，逐項回覆原 inline thread `Resolved after re-review` 並標記 Resolved；另留複審摘要列出已解決及未解決項目。未經 Reviewer 確認不得標記 Resolved。每輪都要明確取得使用者同意；若改變範圍，重新走 H1。Critical／Major 必須修正或由使用者明確接受並記錄風險；Minor 須修正並複審，或在 PR 回覆／記錄。
 
 ### 5. 交付與學習
 
@@ -85,7 +85,7 @@ Agent／LLM 功能開始實作前，先定義版本化、每次執行固定的 E
 
 - **F01 即 Roadmap Phase 1 Foundation：**建立 GitHub Actions PR 持續整合（CI）與 Docker Compose 本機可重現啟動。CI 執行 Java 21 建置／編譯、單元測試、已選定的格式與靜態品質檢查、Markdown 文件檢查，以及依賴與機密掃描。整合測試等資料庫與應用路徑建立後再加入；EDD 在 Agent 功能出現後加入。
 - CI 僅使用 `pull_request`（不可用 `pull_request_target`）、`permissions: contents: read`，不使用 Repository secrets。GitHub Actions 固定到完整 Commit SHA，不用浮動 Tag。每個指定的必要檢查都必須在每個 PR 回報結果；避免在整個 Workflow 層級使用路徑篩選，造成必要檢查停留在 Pending。設定 `main` Branch Protection／Ruleset，要求必須經 PR、指定 CI checks 全綠且管理員不可略過；驗證失敗檢查確實會阻止合併，若目前方案無法強制則記錄限制。
-- 必要 CI 檢查全綠後才能合併；不自動合併。
+- 必要 CI 檢查全綠後才能合併；F01 CI 建立前，依據已記錄的本機檢查並將缺少 CI 列為已知限制。不自動合併。
 - F01 使用 Docker Compose 確保本機可重現啟動，不設定部署到 staging 或 production。
 - 等部署目標明確後再設計 CD。未來可先部署 staging；production 必須使用環境核准，由使用者明確授權，不能讓 Agent 或 CI 自動發布。
 

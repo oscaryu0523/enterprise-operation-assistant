@@ -18,7 +18,7 @@ Codex 與 Claude Code 之間目前採人工交接：Pull Request（PR，合併�
 3. **評估導向開發（EDD）：**功能包含 LLM 或 Agent 行為時，實作前定義版本化且每次執行固定的資料集，並設定可量測檢查，例如任務成功、工具呼叫正確性、引用依據、權限、延遲及成本。無關功能不需 EDD。
 4. **測試導向開發（TDD）：**程式碼行為先寫失敗測試（Red），完成最小實作（Green），再重構（Refactor）。外部模型／Provider 呼叫使用可重現的模擬替身（Mock）。
 5. **風險導向驗證（Risk-driven validation）：**優先檢查授權邊界、Prompt Injection、惡意工具輸出、機密／資料外洩、模型／Provider 故障、重試冪等性及高影響操作。
-6. **獨立審查（Independent review）：**Reviewer 依 Critical／Major／Minor 回報發現，附檔案、行號、證據、影響及建議修正。能對應到變更行的發現必須在 PR 以逐行 Review comment 標註相關行；多行問題使用最小必要行範圍。不適合錨定到 Diff 行的發現才用一般 PR comment，並說明原因。每則 comment 指出問題、可能後果及建議修正，另以 review summary 彙整。Critical／Major 必須修正或由使用者明確接受風險，再由 Reviewer 複審；Minor 可修正或回覆。
+6. **獨立審查（Independent review）：**Reviewer 依 Critical／Major／Minor 回報發現，附檔案、行號、證據、影響及建議修正。能對應到變更行的發現必須在 PR 以逐行 Review comment 標註相關行；多行問題使用最小必要行範圍。不適合錨定到 Diff 行的發現才用一般 PR comment，並說明原因。每則 comment 指出問題、可能後果及建議修正，另以 review summary 彙整。Critical／Major 必須修正並經 Reviewer 複審，或由使用者明確接受風險並記錄在 PR（該項目不需再複審）；Minor 修正後須複審，若以 PR 回覆處理則記錄即可。
 
 ## 三個人工關卡與 PR 審查循環（Review loop）
 
@@ -26,7 +26,7 @@ Codex 與 Claude Code 之間目前採人工交接：Pull Request（PR，合併�
 2. **實作者（Implementer）實作與本機檢查：**完成實作、自我審查及相關本機檢查，整理本機 Diff、檢查結果、設計理由、檔案清單與風險給使用者。
 3. **H2 PR 發布：**使用者審查上述資料並明確授權後，才 Commit（提交版本）、Push（推送分支）及建立 PR。每輪修正也必須提供新 Diff、檢查結果及設計理由，等待使用者明確同意後才能 Commit／Push 更新同一個 PR；範圍變更須重新走 H1。
 4. **審查者（Reviewer）審查 PR：**PR 建立後，Reviewer 唯讀檢查 PR Diff、規格、測試／CI 證據、資安、回歸風險及範圍膨脹。Review handoff（審查交接）要求 Critical／Major／Minor 分級，並提供檔案、行號、證據及建議修正。每個能對應到變更行的發現，都要在 PR 建立錨定該行的逐行 Review comment；多行問題使用最小必要行範圍。不適合錨定到 Diff 行的發現才用一般 PR comment，並解釋原因。逐行 comment 要說明問題、可能後果和建議修正，再以 review summary 彙整整體結論。Reviewer 預設為 Claude Code。若 Reviewer CLI 無 GitHub 寫入權限，由 Supervisor 透明代貼原始發現並標明 Reviewer 與代貼者，不可冒稱 Reviewer 帳號發文。
-5. **修正循環：**Implementer 處理 Reviewer 發現並執行相關檢查，把修正 Diff、設計理由、受影響檔案、風險及檢查結果交給使用者；待使用者明確同意後更新同一個 PR，再請 Reviewer 複審，並把複審結果記錄在 PR。Critical／Major 必須修正，或由使用者明確接受風險並記錄在 PR；已接受風險的項目不需再複審。Minor 若修正則需複審；若以 PR 回覆處理則記錄即可。若修正改變核准範圍，先重新取得 H1 核准。
+5. **修正循環：**Implementer 處理 Reviewer 發現並執行相關檢查，把修正 Diff、設計理由、受影響檔案、風險及檢查結果交給使用者；待使用者明確同意後更新同一個 PR，再請 Reviewer 複審，並把複審結果記錄在 PR。Reviewer 確認修正後，逐項回覆原 inline comment `Resolved after re-review` 並將對應 thread 標記為 Resolved；另留 PR 複審摘要，列出已解決及未解決項目。未經 Reviewer 確認不得標記 Resolved。Critical／Major 必須修正，或由使用者明確接受風險並記錄在 PR；已接受風險的項目不需再複審。Minor 若修正則需複審；若以 PR 回覆處理則記錄即可。若修正改變核准範圍，先重新取得 H1 核准。
 6. **H3 合併：**最新 Reviewer 複審已確認所有修正，且沒有未處理 Critical／Major；例外是使用者已明確接受並在 PR 記錄的風險，這類項目不需再次複審。Minor 若已修正須經複審；若以 PR 回覆處理則記錄即可。交付 H3 時，提供最終 Review／CI 狀態、變更理由與剩餘風險。使用者確認 CI／EDD 結果及未解風險後，明確核准合併至 `main`。不可自動合併。F01 CI 建立前，H3 依據已記錄的本機檢查，並將缺少 CI 列為已知限制。
 
 ## 審查交接（Review handoff）範本
@@ -43,6 +43,7 @@ EDD 資料集與結果（適用時）：
 已知限制與未解風險：
 請審查：規格符合度、正確性、資安、回歸問題及範圍膨脹。
 請依 Critical／Major／Minor 回報。每項能對應到變更行的發現，請在 PR 以逐行 Review comment 錨定至最精確的相關行；多行問題只選最小必要行範圍。comment 必須包含問題、證據、可能後果及建議修正。僅無法合理對應 Diff 行的發現才放一般 PR comment，並解釋原因。另以 review summary 彙整結論；不要只留一則沒有行號錨點的總結。
+複審時逐項檢視前次發現；Reviewer 確認已修正的項目，請回覆原 inline thread `Resolved after re-review` 並標記 Resolved，再以 PR 摘要列出已解決及尚未解決項目。未確認的項目保持未解決。
 請勿編輯檔案或核准／執行合併。
 ```
 
@@ -58,6 +59,6 @@ F01 不部署至 staging 或 production。應用可執行後再評估建置／�
 
 - 維持 `main` 穩定，使用短期 `feature`／`fix`／`docs`／`refactor` 分支；不建立長期 `develop`。
 - 每次 Commit、Push 及建立 PR 前都要取得使用者明確授權；PR 後每輪修正也一樣。
-- 必要 CI 檢查通過、Reviewer 已複審所有修正且風險接受已記錄後，仍須由使用者核准合併。
+- 必要 CI 檢查通過、Reviewer 已複審所有修正且風險接受已記錄後，仍須由使用者核准合併。F01 CI 建立前，改以已記錄的本機檢查作為依據，並將缺少 CI 列為已知限制。
 - 不向 Agent 提供正式環境機密；採最小權限及範圍明確的測試憑證。
 - 執行刪除、不可逆、影響正式環境或對外可見的操作前，先向使用者說明並取得核准。
